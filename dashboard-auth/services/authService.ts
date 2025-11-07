@@ -8,14 +8,14 @@ export const login = async (email: string, password: string) => {
       email,
       password,
     });
-    const { accessToken, user } = response.data.data;
+    const { accessToken, user, message } = response.data.data;
     localStorage.setItem("accessToken", accessToken);
     localStorage.setItem("user", JSON.stringify(user));
-    toast.success('Login successful!');
-    window.location.href = '/dashboard';
-    return response.data.data.message;
+    toast.success("Login successful!");
+    window.location.href = "/dashboard";
+    return message;
   } catch (error: any) {
-    toast.error(error.response?.data?.message || 'Login failed');
+    toast.error(error.response?.data?.message || "Login failed");
     throw error;
   }
 };

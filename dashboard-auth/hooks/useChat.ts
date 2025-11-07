@@ -82,8 +82,11 @@ export const useChat = () => {
         const updated = { ...prev };
         Object.keys(updated).forEach(chatKey => {
           updated[chatKey] = updated[chatKey].map(msg => {
-            // Match by tempId or actual message id
-            if (msg.id === data.messageId || msg.id === data.tempId) {
+            // Match by tempId, actual message id, or message content and timestamp
+            if (msg.id === data.messageId || 
+                msg.id === data.tempId || 
+                (data.messageText && msg.text === data.messageText && 
+                 Math.abs(new Date(msg.timestamp).getTime() - new Date(data.timestamp).getTime()) < 5000)) {
               return { ...msg, status: data.status, id: data.messageId || msg.id };
             }
             return msg;
@@ -118,13 +121,27 @@ export const useChat = () => {
     });
 
     socketRef.current.on("user_status_changed", (data) => {
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.name === data.name
-            ? { ...u, id: data.id, status: data.status as "online" | "offline", lastSeen: new Date() }
-            : u
-        )
-      );
+      setUsers((prev) => {
+        const existingUser = prev.find(u => u.name === data.name);
+        if (existingUser) {
+          return prev.map((u) =>
+            u.name === data.name
+              ? { ...u, id: data.id, status: data.status as "online" | "offline", lastSeen: new Date() }
+              : u
+          );
+        } else {
+          // Add new user if not exists
+          const userInfo = localStorage.getItem("user");
+          const currentUser = userInfo ? JSON.parse(userInfo) : null;
+          const currentUserName = currentUser?.username || currentUser?.email || "Anonymous";
+          return [...prev, {
+            ...data,
+            status: data.status as "online" | "offline",
+            lastSeen: new Date(),
+            isCurrentUser: data.name === currentUserName
+          }];
+        }
+      });
     });
 
     socketRef.current.on("users_list", (usersList: any[]) => {
@@ -132,16 +149,24 @@ export const useChat = () => {
       const currentUser = userInfo ? JSON.parse(userInfo) : null;
       const currentUserName = currentUser?.username || currentUser?.email || "Anonymous";
       
-      setUsers(
-        usersList
-          .filter((user: any) => user.id) // Filter out users with null IDs
+      setUsers((prevUsers) => {
+        const newUsers = usersList
+          .filter((user: any) => user.id)
           .map((user: any) => ({
             ...user,
             status: user.status || "online" as const,
             lastSeen: new Date(),
             isCurrentUser: user.name === currentUserName
-          }))
-      );
+          }));
+        
+        // Merge with existing offline users to keep them visible
+        const offlineUsers = prevUsers.filter(prevUser => 
+          prevUser.status === "offline" && 
+          !newUsers.find(newUser => newUser.name === prevUser.name)
+        );
+        
+        return [...newUsers, ...offlineUsers];
+      });
     });
 
     // Listen for chat history
@@ -157,12 +182,21 @@ export const useChat = () => {
         const receiverName = chat.receiver.username || chat.receiver.email;
         const otherUser = senderName === currentUserName ? receiverName : senderName;
         
+        // For received messages, mark as read since user is viewing them
+        // For sent messages, use the actual read status from server
+        let messageStatus: "sent" | "delivered" | "read";
+        if (senderName === currentUserName) {
+          messageStatus = chat.isRead ? "read" : "delivered";
+        } else {
+          messageStatus = "read"; // Mark received messages as read when loading history
+        }
+        
         const message: Message = {
           id: chat._id || (Date.now() + Math.random()).toString(),
           text: chat.message,
           sender: senderName === currentUserName ? "user" : "bot",
           timestamp: new Date(chat.createdAt),
-          status: chat.isRead ? "read" : "delivered"
+          status: messageStatus
         };
         
         if (!groupedMessages[otherUser]) {
@@ -213,7 +247,8 @@ export const useChat = () => {
       receiver: receiverUser.name,
       receiverId: activeChat,
       timestamp: new Date().toISOString(),
-      tempId
+      tempId,
+      messageText
     };
 
     socketRef.current.emit("private_message", messageData);

@@ -7,7 +7,7 @@ export const handleChatEvents = (io, socket) => {
       const userName = userData.name || `User-${socket.id.slice(0, 6)}`;
 
       // Find and update user in database
-      const dbUser = await User.findOneAndUpdate(
+      let dbUser = await User.findOneAndUpdate(
         { $or: [{ username: userName }, { email: userName }] },
         {
           socketId: socket.id,
@@ -17,9 +17,28 @@ export const handleChatEvents = (io, socket) => {
         { new: true }
       );
 
+      console.log(dbUser);
+
       if (!dbUser) {
-        console.error(`User ${userName} not found in database`);
-        return;
+        console.log(
+          `User ${userName} not found in chat system, checking if exists in auth...`
+        );
+        // Try to find user by email or username separately
+        dbUser = await User.findOne({
+          $or: [{ username: userName }, { email: userName }],
+        });
+
+        if (dbUser) {
+          // User exists, just update socket info
+          dbUser.socketId = socket.id;
+          dbUser.status = "online";
+          dbUser.lastSeen = new Date();
+          await dbUser.save();
+        } else {
+          console.error(`User ${userName} not found in database`);
+          socket.emit("error", { message: "User not found in system" });
+          return;
+        }
       }
 
       // Notify all clients about user connection
@@ -43,6 +62,34 @@ export const handleChatEvents = (io, socket) => {
         userId: user._id,
       }));
       socket.emit("users_list", usersList);
+
+      // Mark all unread messages to this user as read (including delivered and sent)
+      const updatedMessages = await Chat.updateMany(
+        { receiver: dbUser._id, isRead: false },
+        { status: "read", isRead: true }
+      );
+
+      console.log(
+        `Marked ${updatedMessages.modifiedCount} messages as read for user ${userName}`
+      );
+
+      // Notify senders of read status updates
+      if (updatedMessages.modifiedCount > 0) {
+        const readMessages = await Chat.find({
+          receiver: dbUser._id,
+          status: "read",
+          isRead: true
+        }).populate("sender", "username email socketId");
+
+        readMessages.forEach((msg) => {
+          if (msg.sender.socketId) {
+            io.to(msg.sender.socketId).emit("message_status_update", {
+              messageId: msg._id.toString(),
+              status: "read"
+            });
+          }
+        });
+      }
 
       // Send previous chat messages to user
       const previousChats = await Chat.find({
@@ -83,11 +130,12 @@ export const handleChatEvents = (io, socket) => {
         return;
       }
 
-      // Save message to database
+      // Save message to database with initial status
       const chatMessage = new Chat({
         sender: senderUser._id,
         receiver: receiverUser._id,
         message,
+        status: "sent",
         isRead: false,
       });
       await chatMessage.save();
@@ -99,29 +147,21 @@ export const handleChatEvents = (io, socket) => {
         message,
         timestamp: chatMessage.createdAt,
         isRead: false,
-        tempId
+        tempId,
       };
 
-      console.log("Sending private message:", messageData);
-
-      // Update sender's message status to delivered
-      if (tempId) {
+      // Check if receiver is online and send message
+      if (receiverUser.status === "online" && receiverUser.socketId) {
+        socket.to(receiverUser.socketId).emit("private_message", messageData);
+        
+        // Update status to delivered when sent to online user
+        await Chat.findByIdAndUpdate(chatMessage._id, { status: "delivered" });
+        
         socket.emit("message_status_update", {
           messageId: chatMessage._id.toString(),
-          tempId: tempId,
-          status: "delivered"
+          tempId,
+          status: "delivered",
         });
-      }
-
-      // Check if receiver is online
-      if (receiverUser.status === "online" && receiverUser.socketId) {
-        // Send to online receiver
-        socket.to(receiverUser.socketId).emit("private_message", messageData);
-        console.log(
-          `Message sent to ${receiver} at socket ${receiverUser.socketId}`
-        );
-      } else {
-        console.log(`Receiver ${receiver} is offline`);
       }
     } catch (error) {
       console.error("Error handling private message:", error);
@@ -215,11 +255,11 @@ export const handleChatEvents = (io, socket) => {
   socket.on("message_read", async (data) => {
     try {
       const { messageId } = data;
-      
+
       // Update message as read in database
       const updatedMessage = await Chat.findByIdAndUpdate(
         messageId,
-        { isRead: true },
+        { isRead: true, status: "read" },
         { new: true }
       ).populate("sender", "username email socketId");
 
@@ -227,7 +267,7 @@ export const handleChatEvents = (io, socket) => {
         // Notify sender that message was read
         io.to(updatedMessage.sender.socketId).emit("message_status_update", {
           messageId: messageId,
-          status: "read"
+          status: "read",
         });
       }
     } catch (error) {
