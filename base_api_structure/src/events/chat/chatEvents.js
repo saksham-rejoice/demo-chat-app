@@ -78,14 +78,14 @@ export const handleChatEvents = (io, socket) => {
         const readMessages = await Chat.find({
           receiver: dbUser._id,
           status: "read",
-          isRead: true
+          isRead: true,
         }).populate("sender", "username email socketId");
 
         readMessages.forEach((msg) => {
           if (msg.sender.socketId) {
             io.to(msg.sender.socketId).emit("message_status_update", {
               messageId: msg._id.toString(),
-              status: "read"
+              status: "read",
             });
           }
         });
@@ -153,10 +153,10 @@ export const handleChatEvents = (io, socket) => {
       // Check if receiver is online and send message
       if (receiverUser.status === "online" && receiverUser.socketId) {
         socket.to(receiverUser.socketId).emit("private_message", messageData);
-        
+
         // Update status to delivered when sent to online user
         await Chat.findByIdAndUpdate(chatMessage._id, { status: "delivered" });
-        
+
         socket.emit("message_status_update", {
           messageId: chatMessage._id.toString(),
           tempId,
@@ -272,6 +272,63 @@ export const handleChatEvents = (io, socket) => {
       }
     } catch (error) {
       console.error("Error marking message as read:", error);
+    }
+  });
+
+  socket.on("file_message", async (data) => {
+    try {
+      const { sender, receiver, receiverId, fileUrl, tempId } = data;
+
+      if (!receiver || !receiverId || !fileUrl) {
+        socket.emit("error", { message: "Invalid file message data" });
+        return;
+      }
+
+      const senderUser = await User.findOne({
+        $or: [{ username: sender }, { email: sender }],
+      });
+      const receiverUser = await User.findOne({
+        $or: [{ username: receiver }, { email: receiver }],
+      });
+
+      if (!senderUser || !receiverUser) {
+        socket.emit("error", { message: "User not found" });
+        return;
+      }
+
+      const chatMessage = new Chat({
+        sender: senderUser._id,
+        receiver: receiverUser._id,
+        message: "File",
+        fileUrl,
+        status: "sent",
+        isRead: false,
+      });
+      await chatMessage.save();
+
+      const messageData = {
+        id: chatMessage._id.toString(),
+        sender,
+        receiver,
+        message: "File",
+        fileUrl,
+        timestamp: chatMessage.createdAt,
+        isRead: false,
+        tempId,
+      };
+
+      if (receiverUser.status === "online" && receiverUser.socketId) {
+        socket.to(receiverUser.socketId).emit("file_message", messageData);
+        await Chat.findByIdAndUpdate(chatMessage._id, { status: "delivered" });
+        socket.emit("message_status_update", {
+          messageId: chatMessage._id.toString(),
+          tempId,
+          status: "delivered",
+        });
+      }
+    } catch (error) {
+      console.error("Error handling file message:", error);
+      socket.emit("error", { message: "Failed to process file message" });
     }
   });
 };
