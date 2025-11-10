@@ -8,6 +8,8 @@ interface Message {
   timestamp: Date;
   status: "sent" | "delivered" | "read";
   fileUrl?: string;
+  isImportant?: boolean;
+  decision?: "accepted" | "rejected";
 }
 
 interface User {
@@ -179,6 +181,8 @@ export const useChat = () => {
           data.status ||
           (data.sender === currentUserName ? "sent" : "delivered"),
         fileUrl: data.fileUrl,
+        isImportant: data.isImportant,
+        decision: data.decision,
       };
 
       const chatKey =
@@ -399,6 +403,8 @@ export const useChat = () => {
           timestamp: new Date(chat.createdAt),
           status: messageStatus,
           fileUrl: chat.fileUrl || undefined,
+          isImportant: chat.isImportant || false,
+          decision: chat.decision || undefined,
         };
 
         if (!groupedMessages[otherUser]) {
@@ -410,13 +416,57 @@ export const useChat = () => {
       setMessages(groupedMessages);
     });
 
+    // Listen for decision updates on existing messages
+    socketRef.current.on(
+      "chat_decision_update",
+      (data: { messageId: string; decision: "accepted" | "rejected" }) => {
+        setMessages((prev) => {
+          const updated = { ...prev };
+          Object.keys(updated).forEach((chatKey) => {
+            updated[chatKey] = updated[chatKey].map((msg) =>
+              msg.id === data.messageId
+                ? { ...msg, decision: data.decision }
+                : msg
+            );
+          });
+          return updated;
+        });
+      }
+    );
+
     return () => {
       socketRef.current?.disconnect();
     };
   }, []);
 
-  const sendMessage = () => {
-    if (!inputText.trim() || !socketRef.current || !activeChat) return;
+
+
+  const sendChatDecision = (
+  messageId: string,
+  decision: "accepted" | "rejected",
+  receiverId: string,
+  receiverName: string
+) => {
+  if (!socketRef.current) return;
+
+  const userInfo = localStorage.getItem("user");
+  const currentUser = userInfo ? JSON.parse(userInfo) : null;
+
+  socketRef.current.emit("chat_decision", {
+    messageId,
+    decision,
+    sender: currentUser?.username || currentUser?.email || "Anonymous",
+    receiver: receiverName,
+    receiverId,
+  });
+};
+
+
+  const sendMessage = (options?: { text?: string; isImportant?: boolean }) => {
+    if (!socketRef.current || !activeChat) return;
+    
+    const messageText = options?.text || inputText.trim();
+    if (!messageText) return;
 
     const userInfo = localStorage.getItem("user");
     const currentUser = userInfo ? JSON.parse(userInfo) : null;
@@ -427,7 +477,6 @@ export const useChat = () => {
     if (!receiverUser) return;
 
     const tempId = `temp-${Date.now()}-${Math.random()}`;
-    const messageText = inputText;
 
     // Add message with "sent" status immediately
     const tempMessage: Message = {
@@ -436,6 +485,7 @@ export const useChat = () => {
       sender: "user",
       timestamp: new Date(),
       status: "sent",
+      isImportant: options?.isImportant
     };
 
     setMessages((prev) => ({
@@ -450,11 +500,11 @@ export const useChat = () => {
       receiverId: receiverUser.userId,
       timestamp: new Date().toISOString(),
       tempId,
-      messageText,
+      isImportant: options?.isImportant
     };
 
     socketRef.current.emit("private_message", messageData);
-    setInputText("");
+    if (!options?.text) setInputText("");
   };
 
   const syncUsers = () => {
@@ -477,5 +527,6 @@ export const useChat = () => {
     sendFileMessage,
     syncUsers,
     setStatus,
+    sendChatDecision,
   };
 };

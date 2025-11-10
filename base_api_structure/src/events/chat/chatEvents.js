@@ -148,7 +148,7 @@ export const handleChatEvents = (io, socket) => {
     try {
       console.info("[PRIVATE_MSG_RECEIVED] Data:", data);
 
-      const { message, sender, receiver, receiverId, tempId } = data;
+      const { message, sender, receiver, receiverId, tempId, isImportant } = data;
 
       // Validate required fields
       if (!message || !receiver || !receiverId) {
@@ -195,6 +195,8 @@ export const handleChatEvents = (io, socket) => {
         message,
         status: "sent",
         isRead: false,
+        // persist importance if provided
+        isImportant: !!isImportant,
       });
       await chatMessage.save();
 
@@ -213,6 +215,7 @@ export const handleChatEvents = (io, socket) => {
         isRead: false,
         tempId,
         status: "sent",
+        isImportant: !!isImportant,
       };
 
       // Check if receiver is actually online (both socket presence AND database status)
@@ -658,6 +661,101 @@ export const handleChatEvents = (io, socket) => {
     } catch (error) {
       console.error("[FILE_MSG_ERROR] Error handling file message:", error);
       socket.emit("error", { message: "Failed to process file message" });
+    }
+  });
+
+  socket.on("chat_decision", async (data) => {
+    try {
+      const { messageId, decision, sender, receiver, receiverId } = data;
+      console.info("[CHAT_DECISION_RECEIVED]", data);
+
+      // Validate inputs
+      if (!messageId || !decision || !sender || !receiverId) {
+        console.error("[CHAT_DECISION_INVALID_DATA]", data);
+        socket.emit("error", { message: "Invalid decision event data" });
+        return;
+      }
+
+      // Find users
+      const senderUser = await User.findOne({
+        $or: [{ username: sender }, { email: sender }],
+      });
+      const receiverUser = await User.findById(receiverId);
+
+      if (!senderUser || !receiverUser) {
+        console.error("[CHAT_DECISION_USER_NOT_FOUND]", { sender, receiverId });
+        socket.emit("error", { message: "User not found" });
+        return;
+      }
+
+      // Update the original message (mark decision)
+      await Chat.findByIdAndUpdate(messageId, {
+        decision,
+        decisionAt: new Date(),
+      });
+
+      // Broadcast decision update so both clients can reflect decision on the original message
+      io.to(senderUser._id.toString()).emit("chat_decision_update", {
+        messageId,
+        decision,
+      });
+      io.to(receiverUser._id.toString()).emit("chat_decision_update", {
+        messageId,
+        decision,
+      });
+
+      // Create an auto-reply message ("Yes" or "No")
+      const autoReplyMessage = new Chat({
+        sender: senderUser._id,
+        receiver: receiverUser._id,
+        message: decision === "accepted" ? "Yes ✅" : "No ❌",
+        status: "sent",
+        isRead: false,
+      });
+      await autoReplyMessage.save();
+
+      const messageData = {
+        id: autoReplyMessage._id.toString(),
+        senderId: senderUser._id.toString(),
+        receiverId: receiverUser._id.toString(),
+        sender: senderUser.username || senderUser.email,
+        receiver: receiverUser.username || receiverUser.email,
+        message: autoReplyMessage.message,
+        timestamp: autoReplyMessage.createdAt,
+        isRead: false,
+        status: "sent",
+      };
+
+      // Check if receiver is online
+      const receiverSockets = await io
+        .in(receiverUser._id.toString())
+        .fetchSockets();
+      const isReceiverOnline =
+        receiverSockets.length > 0 && receiverUser.status === "online";
+
+      if (isReceiverOnline) {
+        io.to(receiverUser._id.toString()).emit("private_message", messageData);
+        console.info(
+          `[CHAT_DECISION_SENT] ${decision} message sent to ${receiverUser._id}`
+        );
+
+        await Chat.findByIdAndUpdate(autoReplyMessage._id, {
+          status: "delivered",
+        });
+
+        // Notify sender that message was delivered
+        socket.emit("message_status_update", {
+          messageId: autoReplyMessage._id.toString(),
+          status: "delivered",
+        });
+      }
+
+      console.info(
+        `[CHAT_DECISION_SUCCESS] Decision '${decision}' processed for message ${messageId}`
+      );
+    } catch (error) {
+      console.error("[CHAT_DECISION_ERROR]", error);
+      socket.emit("error", { message: "Failed to process decision" });
     }
   });
 };
