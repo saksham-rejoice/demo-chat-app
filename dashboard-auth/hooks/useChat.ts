@@ -16,6 +16,7 @@ interface User {
   status: "online" | "offline";
   lastSeen: Date;
   isCurrentUser?: boolean;
+  userId: string;
 }
 
 export const useChat = () => {
@@ -33,11 +34,11 @@ export const useChat = () => {
     const currentUser = userInfo ? JSON.parse(userInfo) : null;
     const senderName =
       currentUser?.username || currentUser?.email || "Anonymous";
-    const receiverUser = users.find((u) => u.id === activeChat);
+    const receiverUser = users.find((u) => u.userId === activeChat);
 
     if (!receiverUser) return;
 
-    const tempId = Date.now().toString();
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
     const tempMessage: Message = {
       id: tempId,
       text: "File",
@@ -55,7 +56,7 @@ export const useChat = () => {
     const messageData = {
       sender: senderName,
       receiver: receiverUser.name,
-      receiverId: activeChat,
+      receiverId: receiverUser.userId,
       fileUrl,
       tempId,
     };
@@ -64,13 +65,21 @@ export const useChat = () => {
   };
 
   // Mark messages as read when viewing a chat
+  const readMessagesRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (activeChat && socketRef.current) {
-      const receiverUser = users.find((u) => u.id === activeChat);
+      const receiverUser = users.find((u) => u.userId === activeChat);
       if (receiverUser) {
         const chatMessages = messages[receiverUser.name] || [];
         chatMessages.forEach((message) => {
-          if (message.sender === "bot" && message.status !== "read") {
+          if (
+            message.sender === "bot" &&
+            message.status !== "read" &&
+            message.id &&
+            !readMessagesRef.current.has(message.id)
+          ) {
+            readMessagesRef.current.add(message.id);
             socketRef.current?.emit("message_read", { messageId: message.id });
           }
         });
@@ -84,7 +93,6 @@ export const useChat = () => {
 
     socketRef.current.on("connect", () => {
       setIsConnected(true);
-      console.log("Connected to server");
 
       // Get user info and join with real name
       const userInfo = localStorage.getItem("user");
@@ -93,12 +101,13 @@ export const useChat = () => {
         socketRef.current?.emit("user_join", {
           name: user.username || user.email || "Anonymous",
         });
+        // Join user's personal room
+        socketRef.current?.emit("join_room", user._id);
       }
     });
 
     socketRef.current.on("disconnect", () => {
       setIsConnected(false);
-      console.log("Disconnected from server");
     });
 
     // Listen for file messages
@@ -109,24 +118,48 @@ export const useChat = () => {
         currentUser?.username || currentUser?.email || "Anonymous";
 
       const newMessage: Message = {
-        id: data.id || Date.now().toString(),
+        id: data.id || `${Date.now()}-${Math.random()}`,
         text: "File",
         sender: data.sender === currentUserName ? "user" : "bot",
         timestamp: new Date(data.timestamp),
-        status: data.sender === currentUserName ? "delivered" : "read",
+        status:
+          data.status ||
+          (data.sender === currentUserName ? "sent" : "delivered"),
         fileUrl: data.fileUrl,
       };
 
       const chatKey =
         data.sender === currentUserName ? data.receiver : data.sender;
-      setMessages((prev) => ({
-        ...prev,
-        [chatKey]: [...(prev[chatKey] || []), newMessage],
-      }));
 
-      // Send read receipt for received file messages
-      if (data.sender !== currentUserName) {
+      setMessages((prev) => {
+        const existingMessages = prev[chatKey] || [];
+        // Check if message already exists to prevent duplicates
+        const messageExists = existingMessages.some(
+          (msg) =>
+            msg.id === newMessage.id || (data.tempId && msg.id === data.tempId)
+        );
+
+        if (messageExists) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          [chatKey]: [...existingMessages, newMessage],
+        };
+      });
+
+      // Send read receipt for received file messages (only once)
+      if (
+        data.sender !== currentUserName &&
+        data.id &&
+        newMessage.status !== "read"
+      ) {
         socketRef.current?.emit("message_read", { messageId: data.id });
+        // Send acknowledgement
+        socketRef.current?.emit("message_acknowledgement_ack", {
+          messageId: data.id,
+        });
       }
     });
 
@@ -138,53 +171,81 @@ export const useChat = () => {
         currentUser?.username || currentUser?.email || "Anonymous";
 
       const newMessage: Message = {
-        id: data.id || Date.now().toString(),
+        id: data.id || `${Date.now()}-${Math.random()}`,
         text: data.message,
         sender: data.sender === currentUserName ? "user" : "bot",
         timestamp: new Date(data.timestamp),
-        status: data.sender === currentUserName ? "delivered" : "read",
+        status:
+          data.status ||
+          (data.sender === currentUserName ? "sent" : "delivered"),
         fileUrl: data.fileUrl,
       };
 
       const chatKey =
         data.sender === currentUserName ? data.receiver : data.sender;
-      setMessages((prev) => ({
-        ...prev,
-        [chatKey]: [...(prev[chatKey] || []), newMessage],
-      }));
 
-      // Send read receipt for received messages
-      if (data.sender !== currentUserName) {
+      setMessages((prev) => {
+        const existingMessages = prev[chatKey] || [];
+        // Check if message already exists to prevent duplicates
+        const messageExists = existingMessages.some(
+          (msg) =>
+            msg.id === newMessage.id || (data.tempId && msg.id === data.tempId)
+        );
+
+        if (messageExists) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          [chatKey]: [...existingMessages, newMessage],
+        };
+      });
+      // Send read receipt for received messages (only once)
+      if (
+        data.sender !== currentUserName &&
+        data.id &&
+        newMessage.status !== "read"
+      ) {
         socketRef.current?.emit("message_read", { messageId: data.id });
+        // Send acknowledgement
+        socketRef.current?.emit("message_acknowledgement_ack", {
+          messageId: data.id,
+        });
       }
     });
 
     // Listen for message status updates
     socketRef.current.on("message_status_update", (data) => {
+      console.log("[STATUS_UPDATE_RECEIVED]", data); // Debug log
       setMessages((prev) => {
         const updated = { ...prev };
+        let statusUpdated = false;
         Object.keys(updated).forEach((chatKey) => {
           updated[chatKey] = updated[chatKey].map((msg) => {
-            // Match by tempId, actual message id, or message content and timestamp
-            if (
-              msg.id === data.messageId ||
-              msg.id === data.tempId ||
-              (data.messageText &&
-                msg.text === data.messageText &&
-                Math.abs(
-                  new Date(msg.timestamp).getTime() -
-                    new Date(data.timestamp).getTime()
-                ) < 5000)
-            ) {
+            // Match by message ID or temp ID
+            if (msg.id === data.messageId || msg.id === data.tempId) {
+              statusUpdated = true;
+              console.log(
+                `[MESSAGE_STATUS_CHANGED] Message ${msg.id} status changed from ${msg.status} to ${data.status}`
+              ); // Debug log
               return {
                 ...msg,
-                status: data.status,
+                status: data.status as "sent" | "delivered" | "read",
                 id: data.messageId || msg.id,
               };
             }
             return msg;
           });
         });
+
+        // If status was updated to delivered, send acknowledgment
+        if (statusUpdated && data.status === "delivered") {
+          socketRef.current?.emit("message_acknowledgement_ack", {
+            messageId: data.messageId,
+          });
+        }
+
         return updated;
       });
     });
@@ -203,6 +264,7 @@ export const useChat = () => {
               ? {
                   ...u,
                   id: user.id,
+                  userId: user.userId,
                   status: "online" as const,
                   lastSeen: new Date(),
                 }
@@ -223,14 +285,22 @@ export const useChat = () => {
     });
 
     socketRef.current.on("user_status_changed", (data) => {
+      console.log("[USER_STATUS_CHANGED]", data); // Debug log
       setUsers((prev) => {
         const existingUser = prev.find((u) => u.name === data.name);
         if (existingUser) {
+          // If user goes online, trigger a sync to get latest message statuses
+          if (data.status === "online") {
+            setTimeout(() => {
+              socketRef.current?.emit("sync_users");
+            }, 1000); // Small delay to ensure backend has processed status changes
+          }
           return prev.map((u) =>
             u.name === data.name
               ? {
                   ...u,
                   id: data.id,
+                  userId: data.userId,
                   status: data.status as "online" | "offline",
                   lastSeen: new Date(),
                 }
@@ -282,6 +352,23 @@ export const useChat = () => {
       });
     });
 
+    // Handle acknowledgement requests
+    socketRef.current.on("request_message_ack", (data) => {
+      // Send acknowledgement back to server
+      socketRef.current?.emit("message_acknowledgement_ack", {
+        messageId: data.messageId,
+      });
+    });
+
+    // Handle delivery confirmations
+    socketRef.current.on("message_delivery_confirmed", (data) => {
+      console.log(
+        `[DELIVERY_CONFIRMED] Message delivered to ${data.receiverName}`
+      );
+      // You can show a toast notification here
+      // toast.success(`Message delivered to ${data.receiverName}`);
+    });
+
     // Listen for chat history
     socketRef.current.on("chat_history", (chatHistory: any[]) => {
       const userInfo = localStorage.getItem("user");
@@ -297,13 +384,12 @@ export const useChat = () => {
         const otherUser =
           senderName === currentUserName ? receiverName : senderName;
 
-        // For received messages, mark as read since user is viewing them
-        // For sent messages, use the actual read status from server
+        // Use actual status from server
         let messageStatus: "sent" | "delivered" | "read";
         if (senderName === currentUserName) {
-          messageStatus = chat.isRead ? "read" : "delivered";
+          messageStatus = chat.isRead ? "read" : chat.status || "sent";
         } else {
-          messageStatus = "read"; // Mark received messages as read when loading history
+          messageStatus = chat.status || "delivered";
         }
 
         const message: Message = {
@@ -336,11 +422,11 @@ export const useChat = () => {
     const currentUser = userInfo ? JSON.parse(userInfo) : null;
     const senderName =
       currentUser?.username || currentUser?.email || "Anonymous";
-    const receiverUser = users.find((u) => u.id === activeChat);
+    const receiverUser = users.find((u) => u.userId === activeChat);
 
     if (!receiverUser) return;
 
-    const tempId = Date.now().toString();
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
     const messageText = inputText;
 
     // Add message with "sent" status immediately
@@ -361,7 +447,7 @@ export const useChat = () => {
       message: messageText,
       sender: senderName,
       receiver: receiverUser.name,
-      receiverId: activeChat,
+      receiverId: receiverUser.userId,
       timestamp: new Date().toISOString(),
       tempId,
       messageText,

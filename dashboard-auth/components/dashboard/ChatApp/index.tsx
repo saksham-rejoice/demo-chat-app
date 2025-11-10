@@ -126,12 +126,18 @@ const ChatApp = () => {
 
         {/* User List */}
         <div className="flex-1 overflow-y-auto">
-          {users.map((user) => (
+          {users
+            .sort((a, b) => {
+              if (a.isCurrentUser) return -1;
+              if (b.isCurrentUser) return 1;
+              return 0;
+            })
+            .map((user) => (
             <div
-              key={user.id}
+              key={user.userId || user.id}
               onClick={() => {
                 if (!user.isCurrentUser) {
-                  setActiveChat(user.id);
+                  setActiveChat(user.userId);
                   setSidebarOpen(false);
                 }
               }}
@@ -139,7 +145,7 @@ const ChatApp = () => {
                 user.isCurrentUser
                   ? "opacity-50 cursor-not-allowed"
                   : "cursor-pointer hover:bg-gray-700"
-              } ${activeChat === user.id ? "bg-gray-700" : ""}`}
+              } ${activeChat === user.userId ? "bg-gray-700" : ""}`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -207,7 +213,7 @@ const ChatApp = () => {
               </div>
               <h1 className="text-xl font-bold">
                 {activeChat
-                  ? users.find((u) => u.id === activeChat)?.name
+                  ? users.find((u) => u.userId === activeChat)?.name
                   : "Select a user"}
               </h1>
             </div>
@@ -223,8 +229,8 @@ const ChatApp = () => {
               </div>
               <p className="text-lg">Select a user to start messaging</p>
             </div>
-          ) : !messages[users.find((u) => u.id === activeChat)?.name || ""] ||
-            messages[users.find((u) => u.id === activeChat)?.name || ""]
+          ) : !messages[users.find((u) => u.userId === activeChat)?.name || ""] ||
+            messages[users.find((u) => u.userId === activeChat)?.name || ""]
               .length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-400">
               <div className="text-6xl mb-4">
@@ -235,7 +241,7 @@ const ChatApp = () => {
           ) : (
             <div className="space-y-4">
               {(
-                messages[users.find((u) => u.id === activeChat)?.name || ""] ||
+                messages[users.find((u) => u.userId === activeChat)?.name || ""] ||
                 []
               ).map((message) => (
                 <div
