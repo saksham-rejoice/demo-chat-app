@@ -1,5 +1,8 @@
-import React from "react";
+"use client";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 type User = {
   id: string;
@@ -8,6 +11,7 @@ type User = {
   lastSeen: Date;
   isCurrentUser?: boolean;
   userId: string;
+  unreadCount?: number;
 };
 
 type Props = {
@@ -31,6 +35,13 @@ const Sidebar: React.FC<Props> = ({
   onRefresh,
   onToggleStatus,
 }) => {
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const total = users.reduce((acc, user) => acc + (user.unreadCount || 0), 0);
+    setTotalUnreadCount(total);
+  }, [users]);
+
   return (
     <div
       className={`w-80 bg-gray-800 border-r border-gray-700 flex flex-col transition-transform duration-300 z-50 ${
@@ -38,13 +49,23 @@ const Sidebar: React.FC<Props> = ({
       } md:translate-x-0 md:relative fixed inset-y-0 left-0`}
     >
       <div className="bg-gray-700 p-4 border-b border-gray-600">
-        <h2 className="text-white text-lg font-semibold">Users ({users.length})</h2>
+        <h2 className="text-white text-lg font-semibold flex items-center justify-between">
+          <span>Users ({users.length})</span>{" "}
+          <span>
+            {" "}
+            Unread messages{totalUnreadCount > 0 && `(${totalUnreadCount})`}
+          </span>
+        </h2>
         <div className="flex items-center justify-between mt-2">
           <div className="flex items-center space-x-2 text-sm">
             <div
-              className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-400" : "bg-red-400"}`}
+              className={`w-2 h-2 rounded-full ${
+                isConnected ? "bg-green-400" : "bg-red-400"
+              }`}
             ></div>
-            <span className="text-gray-300">{isConnected ? "Connected" : "Disconnected"}</span>
+            <span className="text-gray-300">
+              {isConnected ? "Connected" : "Disconnected"}
+            </span>
           </div>
           {isConnected && (
             <div className="flex space-x-2">
@@ -63,14 +84,16 @@ const Sidebar: React.FC<Props> = ({
                     : "bg-gray-500 text-white hover:bg-gray-600"
                 }`}
               >
-                {users.find((u) => u.isCurrentUser)?.status === "online" ? "Go Offline" : "Go Online"}
+                {users.find((u) => u.isCurrentUser)?.status === "online"
+                  ? "Go Offline"
+                  : "Go Online"}
               </Button>
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         {users
           .sort((a, b) => {
             if (a.isCurrentUser) return -1;
@@ -86,9 +109,15 @@ const Sidebar: React.FC<Props> = ({
                   setSidebarOpen(false);
                 }
               }}
-              className={`p-4 border-b border-gray-700 transition-colors ${
-                user.isCurrentUser ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-gray-700"
-              } ${activeChat === user.userId ? "bg-gray-700" : ""}`}
+              className={cn(
+                "p-4 border-b border-gray-700 transition-colors relative",
+                user.isCurrentUser
+                  ? "opacity-50 cursor-not-allowed"
+                  : "cursor-pointer hover:bg-gray-700",
+                activeChat === user.userId && "bg-gray-700",
+                user.unreadCount && user.unreadCount > 0 && "bg-gray-800/50",
+                "group hover:bg-gray-700/70 transition-colors duration-200"
+              )}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -96,18 +125,43 @@ const Sidebar: React.FC<Props> = ({
                     <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
                       {user.name.charAt(0)}
                     </div>
-                    <div
-                      className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-gray-800 ${
-                        user.status === "online" ? "bg-green-400" : "bg-gray-400"
+                    <Badge
+                      variant={
+                        user.status === "online" ? "default" : "secondary"
+                      }
+                      className={`absolute -bottom-1 -right-1 h-4 w-4 p-0 rounded-full border-2 border-gray-800 ${
+                        user.status === "online"
+                          ? "bg-green-400 hover:bg-green-400"
+                          : "bg-gray-400 hover:bg-gray-400"
                       }`}
-                    ></div>
+                    />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-white font-medium">
-                      {user.name} {user.isCurrentUser && "(You)"}
-                    </h3>
-                    <p className="text-gray-400 text-sm">
-                      {user.status === "online" ? "Online" : `Last seen ${user.lastSeen.toLocaleTimeString()}`}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-white font-medium truncate">
+                          {user.name} {user.isCurrentUser && "(You)"}
+                        </h3>
+                        {!user.isCurrentUser && (user.unreadCount ?? 0) > 0 && (
+                          <Badge
+                            variant="secondary"
+                            className="h-5 min-w-5 flex items-center justify-center p-0 rounded-md"
+                          >
+                            {(user.unreadCount ?? 0) > 99
+                              ? "99+"
+                              : user.unreadCount}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-gray-400 text-sm truncate">
+                      {user.status === "online"
+                        ? user.isCurrentUser
+                          ? "You are online"
+                          : "Online"
+                        : `Last seen ${new Date(
+                            user.lastSeen
+                          ).toLocaleString()}`}
                     </p>
                   </div>
                 </div>
@@ -115,7 +169,9 @@ const Sidebar: React.FC<Props> = ({
             </div>
           ))}
         {users.length === 0 && (
-          <div className="p-4 text-center text-gray-400">No users connected</div>
+          <div className="p-4 text-center text-gray-400">
+            No users connected
+          </div>
         )}
       </div>
     </div>
@@ -123,5 +179,3 @@ const Sidebar: React.FC<Props> = ({
 };
 
 export default Sidebar;
-
-

@@ -1,0 +1,65 @@
+import mongoose from "mongoose";
+
+const instagramPostSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    description: {
+      type: String,
+      trim: true,
+    },
+    imageDetails: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "InstagramImage",
+    },
+    location: {
+      type: String,
+      trim: true,
+    },
+    hashtags: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    likes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    comments: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        text: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const InstagramPost = mongoose.model("InstagramPost", instagramPostSchema);
+
+export default InstagramPost;

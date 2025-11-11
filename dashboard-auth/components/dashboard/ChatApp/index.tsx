@@ -31,29 +31,38 @@ const ChatApp = () => {
     syncUsers,
     setStatus,
     sendChatDecision,
+    deleteAllChats,
   } = useChat();
 
   const handleRefresh = () => {
+    console.log("[UI] Refresh clicked");
     setRefreshKey((prev) => prev + 1);
+    console.log("[UI] Triggering syncUsers");
     syncUsers();
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
+      console.log("[UI] Enter pressed in input");
       handleSend();
     }
   };
 
   const handleFileUpload = async () => {
     if (!selectedFile || !activeChat) return;
+    console.log("[UI] File upload start", {
+      name: selectedFile?.name,
+      activeChat,
+    });
     setUploading(true);
     try {
       const { url } = await uploadFile(selectedFile);
+      console.log("[UI] File uploaded", { url });
       sendFileMessage(url);
       setUploadOpen(false);
       setSelectedFile(null);
     } catch (error) {
-      console.error("Upload failed:", error);
+      console.error("[UI] Upload failed:", error);
     } finally {
       setUploading(false);
     }
@@ -61,6 +70,7 @@ const ChatApp = () => {
 
   const handleSend = () => {
     if (!inputText.trim()) return;
+    console.log("[UI] Send message", { text: inputText, isImportant });
     sendMessage({
       text: inputText,
       isImportant: isImportant,
@@ -75,6 +85,12 @@ const ChatApp = () => {
     receiverId: string,
     receiverName: string
   ) => {
+    console.log("[UI] Decision clicked", {
+      messageId,
+      decision,
+      receiverId,
+      receiverName,
+    });
     setMessageDecisions((prev) => ({ ...prev, [messageId]: decision }));
     sendChatDecision(messageId, decision, receiverId, receiverName);
   };
@@ -112,6 +128,7 @@ const ChatApp = () => {
           users={users as any}
           activeChat={activeChat}
           onOpenSidebar={() => setSidebarOpen(true)}
+          onDeleteAllChats={deleteAllChats}
         />
 
         {/* Messages */}

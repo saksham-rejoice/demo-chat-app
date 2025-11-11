@@ -19,6 +19,7 @@ interface User {
   lastSeen: Date;
   isCurrentUser?: boolean;
   userId: string;
+  unreadCount?: number;
 }
 
 export const useChat = () => {
@@ -68,25 +69,53 @@ export const useChat = () => {
 
   // Mark messages as read when viewing a chat
   const readMessagesRef = useRef<Set<string>>(new Set());
+  const prevActiveChat = useRef<string | null>(null);
 
   useEffect(() => {
-    if (activeChat && socketRef.current) {
-      const receiverUser = users.find((u) => u.userId === activeChat);
-      if (receiverUser) {
-        const chatMessages = messages[receiverUser.name] || [];
-        chatMessages.forEach((message) => {
-          if (
-            message.sender === "bot" &&
-            message.status !== "read" &&
-            message.id &&
-            !readMessagesRef.current.has(message.id)
-          ) {
-            readMessagesRef.current.add(message.id);
-            socketRef.current?.emit("message_read", { messageId: message.id });
-          }
-        });
-      }
+    if (!activeChat || !socketRef.current) return;
+
+    // Only proceed if activeChat has changed or we have new messages
+    const receiverUser = users.find((u) => u.userId === activeChat);
+    if (!receiverUser) return;
+
+    const chatMessages = messages[receiverUser.name] || [];
+    const hasUnreadMessages = chatMessages.some(
+      (msg) => msg.sender === "bot" && msg.status !== "read"
+    );
+
+    // Mark messages as read if needed
+    const unreadMessages = chatMessages.filter(
+      (msg) =>
+        msg.sender === "bot" &&
+        msg.status !== "read" &&
+        msg.id &&
+        !readMessagesRef.current.has(msg.id)
+    );
+
+    if (unreadMessages.length > 0) {
+      unreadMessages.forEach((message) => {
+        readMessagesRef.current.add(message.id);
+        socketRef.current?.emit("message_read", { messageId: message.id });
+      });
     }
+
+    // Only update users if activeChat changed or we have unread messages
+    if (activeChat !== prevActiveChat.current || hasUnreadMessages) {
+      setUsers((prevUsers) => {
+        // Check if we actually need to update
+        const needsUpdate = prevUsers.some(
+          (u) => u.userId === activeChat && u.unreadCount !== 0
+        );
+
+        if (!needsUpdate) return prevUsers;
+
+        return prevUsers.map((user) =>
+          user.userId === activeChat ? { ...user, unreadCount: 0 } : user
+        );
+      });
+    }
+
+    prevActiveChat.current = activeChat;
   }, [activeChat, messages, users]);
 
   useEffect(() => {
@@ -100,9 +129,10 @@ export const useChat = () => {
       const userInfo = localStorage.getItem("user");
       if (userInfo) {
         const user = JSON.parse(userInfo);
-        socketRef.current?.emit("user_join", {
+        const joinPayload = {
           name: user.username || user.email || "Anonymous",
-        });
+        };
+        socketRef.current?.emit("user_join", joinPayload);
         // Join user's personal room
         socketRef.current?.emit("join_room", user._id);
       }
@@ -172,21 +202,46 @@ export const useChat = () => {
       const currentUserName =
         currentUser?.username || currentUser?.email || "Anonymous";
 
+      const isFromCurrentUser = data.sender === currentUserName;
+      const chatKey = isFromCurrentUser ? data.receiver : data.sender;
+      const isActiveChat = activeChat === data.senderId;
+
+      // Only update unread count if message is from another user and not in active chat
+      if (!isFromCurrentUser && !isActiveChat) {
+        setUsers((prevUsers) => {
+          const userToUpdate = prevUsers.find(
+            (user) => user.name === data.sender
+          );
+          if (!userToUpdate) return prevUsers;
+
+          // Only update if we need to increment the unread count
+          if (
+            userToUpdate.unreadCount === undefined ||
+            userToUpdate.unreadCount < 99
+          ) {
+            return prevUsers.map((user) =>
+              user.name === data.sender
+                ? {
+                    ...user,
+                    unreadCount: (user.unreadCount || 0) + 1,
+                  }
+                : user
+            );
+          }
+          return prevUsers;
+        });
+      }
+
       const newMessage: Message = {
         id: data.id || `${Date.now()}-${Math.random()}`,
         text: data.message,
-        sender: data.sender === currentUserName ? "user" : "bot",
+        sender: isFromCurrentUser ? "user" : "bot",
         timestamp: new Date(data.timestamp),
-        status:
-          data.status ||
-          (data.sender === currentUserName ? "sent" : "delivered"),
+        status: data.status || (isFromCurrentUser ? "sent" : "delivered"),
         fileUrl: data.fileUrl,
         isImportant: data.isImportant,
         decision: data.decision,
       };
-
-      const chatKey =
-        data.sender === currentUserName ? data.receiver : data.sender;
 
       setMessages((prev) => {
         const existingMessages = prev[chatKey] || [];
@@ -205,23 +260,30 @@ export const useChat = () => {
           [chatKey]: [...existingMessages, newMessage],
         };
       });
-      // Send read receipt for received messages (only once)
-      if (
-        data.sender !== currentUserName &&
-        data.id &&
-        newMessage.status !== "read"
-      ) {
+
+      // Send read receipt for received messages (only once) if in active chat
+      if (!isFromCurrentUser && data.id && isActiveChat) {
         socketRef.current?.emit("message_read", { messageId: data.id });
-        // Send acknowledgement
         socketRef.current?.emit("message_acknowledgement_ack", {
           messageId: data.id,
+        });
+
+        // Only reset unread count if it's not already 0
+        setUsers((prevUsers) => {
+          const userToUpdate = prevUsers.find(
+            (user) => user.userId === data.senderId
+          );
+          if (!userToUpdate || userToUpdate.unreadCount === 0) return prevUsers;
+
+          return prevUsers.map((user) =>
+            user.userId === data.senderId ? { ...user, unreadCount: 0 } : user
+          );
         });
       }
     });
 
     // Listen for message status updates
     socketRef.current.on("message_status_update", (data) => {
-      console.log("[STATUS_UPDATE_RECEIVED]", data); // Debug log
       setMessages((prev) => {
         const updated = { ...prev };
         let statusUpdated = false;
@@ -230,9 +292,6 @@ export const useChat = () => {
             // Match by message ID or temp ID
             if (msg.id === data.messageId || msg.id === data.tempId) {
               statusUpdated = true;
-              console.log(
-                `[MESSAGE_STATUS_CHANGED] Message ${msg.id} status changed from ${msg.status} to ${data.status}`
-              ); // Debug log
               return {
                 ...msg,
                 status: data.status as "sent" | "delivered" | "read",
@@ -289,7 +348,6 @@ export const useChat = () => {
     });
 
     socketRef.current.on("user_status_changed", (data) => {
-      console.log("[USER_STATUS_CHANGED]", data); // Debug log
       setUsers((prev) => {
         const existingUser = prev.find((u) => u.name === data.name);
         if (existingUser) {
@@ -366,9 +424,6 @@ export const useChat = () => {
 
     // Handle delivery confirmations
     socketRef.current.on("message_delivery_confirmed", (data) => {
-      console.log(
-        `[DELIVERY_CONFIRMED] Message delivered to ${data.receiverName}`
-      );
       // You can show a toast notification here
       // toast.success(`Message delivered to ${data.receiverName}`);
     });
@@ -379,28 +434,52 @@ export const useChat = () => {
       const currentUser = userInfo ? JSON.parse(userInfo) : null;
       const currentUserName =
         currentUser?.username || currentUser?.email || "Anonymous";
+      const currentUserId = currentUser?.id;
 
       const groupedMessages: { [key: string]: Message[] } = {};
+      const unreadCounts: { [key: string]: number } = {};
+      const messageIds = new Set<string>();
 
-      chatHistory.forEach((chat: any) => {
+      // Process messages in reverse chronological order (newest first)
+      [...chatHistory].reverse().forEach((chat: any) => {
         const senderName = chat.sender.username || chat.sender.email;
         const receiverName = chat.receiver.username || chat.receiver.email;
         const otherUser =
           senderName === currentUserName ? receiverName : senderName;
+        const isFromCurrentUser = senderName === currentUserName;
+        const messageId =
+          chat._id?.toString() || `${chat.timestamp}-${Math.random()}`;
+
+        // Skip duplicates
+        if (messageIds.has(messageId)) return;
+        messageIds.add(messageId);
+
+        if (
+          chat.deleteBy &&
+          Array.isArray(chat.deleteBy) &&
+          chat.deleteBy.includes(currentUserId)
+        ) {
+          return;
+        }
+
+        // Count unread messages (only for messages not from current user)
+        if (!isFromCurrentUser && !chat.isRead) {
+          unreadCounts[otherUser] = (unreadCounts[otherUser] || 0) + 1;
+        }
 
         // Use actual status from server
         let messageStatus: "sent" | "delivered" | "read";
-        if (senderName === currentUserName) {
+        if (isFromCurrentUser) {
           messageStatus = chat.isRead ? "read" : chat.status || "sent";
         } else {
-          messageStatus = chat.status || "delivered";
+          messageStatus = chat.status || (chat.isRead ? "read" : "delivered");
         }
 
         const message: Message = {
-          id: chat._id || (Date.now() + Math.random()).toString(),
+          id: messageId,
           text: chat.message,
-          sender: senderName === currentUserName ? "user" : "bot",
-          timestamp: new Date(chat.createdAt),
+          sender: isFromCurrentUser ? "user" : "bot",
+          timestamp: new Date(chat.createdAt || chat.timestamp || Date.now()),
           status: messageStatus,
           fileUrl: chat.fileUrl || undefined,
           isImportant: chat.isImportant || false,
@@ -413,7 +492,35 @@ export const useChat = () => {
         groupedMessages[otherUser].push(message);
       });
 
-      setMessages(groupedMessages);
+      // Only update state if there are changes
+      setMessages((prevMessages) => {
+        // Check if messages have actually changed
+        const messagesChanged = Object.keys(groupedMessages).some((key) => {
+          const prevMsgs = prevMessages[key] || [];
+          const newMsgs = groupedMessages[key] || [];
+          return (
+            prevMsgs.length !== newMsgs.length ||
+            JSON.stringify(prevMsgs.map((m) => m.id)) !==
+              JSON.stringify(newMsgs.map((m) => m.id))
+          );
+        });
+
+        return messagesChanged ? groupedMessages : prevMessages;
+      });
+
+      // Update users with unread counts if changed
+      setUsers((prevUsers) => {
+        const updatedUsers = prevUsers.map((user) => {
+          const newUnreadCount = unreadCounts[user.name] || 0;
+          return user.unreadCount !== newUnreadCount
+            ? { ...user, unreadCount: newUnreadCount }
+            : user;
+        });
+
+        return JSON.stringify(updatedUsers) !== JSON.stringify(prevUsers)
+          ? updatedUsers
+          : prevUsers;
+      });
     });
 
     // Listen for decision updates on existing messages
@@ -439,32 +546,30 @@ export const useChat = () => {
     };
   }, []);
 
-
-
   const sendChatDecision = (
-  messageId: string,
-  decision: "accepted" | "rejected",
-  receiverId: string,
-  receiverName: string
-) => {
-  if (!socketRef.current) return;
+    messageId: string,
+    decision: "accepted" | "rejected",
+    receiverId: string,
+    receiverName: string
+  ) => {
+    if (!socketRef.current) return;
 
-  const userInfo = localStorage.getItem("user");
-  const currentUser = userInfo ? JSON.parse(userInfo) : null;
+    const userInfo = localStorage.getItem("user");
+    const currentUser = userInfo ? JSON.parse(userInfo) : null;
 
-  socketRef.current.emit("chat_decision", {
-    messageId,
-    decision,
-    sender: currentUser?.username || currentUser?.email || "Anonymous",
-    receiver: receiverName,
-    receiverId,
-  });
-};
-
+    const payload = {
+      messageId,
+      decision,
+      sender: currentUser?.username || currentUser?.email || "Anonymous",
+      receiver: receiverName,
+      receiverId,
+    };
+    socketRef.current.emit("chat_decision", payload);
+  };
 
   const sendMessage = (options?: { text?: string; isImportant?: boolean }) => {
     if (!socketRef.current || !activeChat) return;
-    
+
     const messageText = options?.text || inputText.trim();
     if (!messageText) return;
 
@@ -485,7 +590,7 @@ export const useChat = () => {
       sender: "user",
       timestamp: new Date(),
       status: "sent",
-      isImportant: options?.isImportant
+      isImportant: options?.isImportant,
     };
 
     setMessages((prev) => ({
@@ -500,7 +605,7 @@ export const useChat = () => {
       receiverId: receiverUser.userId,
       timestamp: new Date().toISOString(),
       tempId,
-      isImportant: options?.isImportant
+      isImportant: options?.isImportant,
     };
 
     socketRef.current.emit("private_message", messageData);
@@ -513,6 +618,37 @@ export const useChat = () => {
 
   const setStatus = (status: "online" | "offline") => {
     socketRef.current?.emit("set_status", { status });
+  };
+
+  const deleteAllChats = async (receiverId: string): Promise<boolean> => {
+    if (!receiverId || !socketRef.current) return false;
+
+    try {
+      const userInfo = localStorage.getItem("user");
+      const currentUser = userInfo ? JSON.parse(userInfo) : null;
+      console.log(currentUser);
+      const receiverUser = users.find((u) => u.userId === receiverId);
+
+      if (!receiverUser || !currentUser) return false;
+
+      // Emit event to delete chats
+      socketRef.current.emit("delete_all_chats", {
+        senderId: currentUser.id,
+        receiverId: receiverId,
+        receiverName: receiverUser.name,
+      });
+
+      // Update local state
+      setMessages((prev) => ({
+        ...prev,
+        [receiverUser.name]: [],
+      }));
+
+      return true;
+    } catch (error) {
+      console.error("Error deleting chats:", error);
+      return false;
+    }
   };
 
   return {
@@ -528,5 +664,6 @@ export const useChat = () => {
     syncUsers,
     setStatus,
     sendChatDecision,
+    deleteAllChats,
   };
 };

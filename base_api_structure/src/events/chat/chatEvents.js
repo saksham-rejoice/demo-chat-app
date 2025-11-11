@@ -148,7 +148,8 @@ export const handleChatEvents = (io, socket) => {
     try {
       console.info("[PRIVATE_MSG_RECEIVED] Data:", data);
 
-      const { message, sender, receiver, receiverId, tempId, isImportant } = data;
+      const { message, sender, receiver, receiverId, tempId, isImportant } =
+        data;
 
       // Validate required fields
       if (!message || !receiver || !receiverId) {
@@ -218,26 +219,56 @@ export const handleChatEvents = (io, socket) => {
         isImportant: !!isImportant,
       };
 
-      // Check if receiver is actually online (both socket presence AND database status)
+      // Check if receiver is online and in the chat
       const receiverSockets = await io
         .in(receiverUser._id.toString())
         .fetchSockets();
       const isReceiverOnline =
         receiverSockets.length > 0 && receiverUser.status === "online";
 
+      // Check if receiver is in the chat with the sender
+      let isReceiverInChat = false;
+      if (isReceiverOnline) {
+        const receiverSocket = receiverSockets[0];
+        isReceiverInChat = receiverSocket.rooms.has(senderUser._id.toString());
+      }
+
       console.info(
-        `[RECEIVER_STATUS_CHECK] Receiver ${receiverUser._id}: socketCount=${receiverSockets.length}, dbStatus=${receiverUser.status}, isOnline=${isReceiverOnline}`
+        `[RECEIVER_STATUS_CHECK] Receiver ${receiverUser._id}: ` +
+          `socketCount=${receiverSockets.length}, dbStatus=${receiverUser.status}, ` +
+          `isOnline=${isReceiverOnline}, isInChat=${isReceiverInChat}`
       );
 
-      if (isReceiverOnline) {
-        // Receiver is actually connected and online
-        io.to(receiverUser._id.toString()).emit("private_message", messageData);
-        console.info(
-          `[MSG_EMITTED] Sent message ${chatMessage._id} to receiver ${receiverUser._id}`
-        );
+      if (isReceiverInChat) {
+        // Receiver is in the chat - mark as delivered and read
+        io.to(receiverUser._id.toString()).emit("private_message", {
+          ...messageData,
+          status: "delivered",
+        });
 
-        // Update status to delivered since receiver is online
-        await Chat.findByIdAndUpdate(chatMessage._id, { status: "delivered" });
+        await Chat.findByIdAndUpdate(chatMessage._id, {
+          status: "delivered",
+          isRead: true,
+          readAt: new Date(),
+        });
+
+        // Notify sender that message was delivered and read
+        socket.emit("message_status_update", {
+          messageId: chatMessage._id.toString(),
+          tempId,
+          status: "read",
+        });
+
+        console.info(
+          `[MSG_DELIVERED_AND_READ] id=${chatMessage._id} from=${senderUser._id} to=${receiverUser._id}`
+        );
+      } else if (isReceiverOnline) {
+        // Receiver is online but not in the chat - mark as delivered only
+        io.to(receiverUser._id.toString()).emit("private_message", messageData);
+
+        await Chat.findByIdAndUpdate(chatMessage._id, {
+          status: "delivered",
+        });
 
         // Notify sender that message was delivered
         socket.emit("message_status_update", {
@@ -247,10 +278,10 @@ export const handleChatEvents = (io, socket) => {
         });
 
         console.info(
-          `[MSG_DELIVERED] id=${chatMessage._id} from=${senderUser._id} to=${receiverUser._id} tempId=${tempId}`
+          `[MSG_DELIVERED] id=${chatMessage._id} from=${senderUser._id} to=${receiverUser._id}`
         );
       } else {
-        // Receiver is offline, message stays as "sent"
+        // Receiver is offline - message stays as "sent"
         console.warn(
           `[MSG_QUEUED] id=${chatMessage._id} from=${senderUser._id} to=${receiverUser._id} - receiver offline, message queued`
         );
@@ -756,6 +787,36 @@ export const handleChatEvents = (io, socket) => {
     } catch (error) {
       console.error("[CHAT_DECISION_ERROR]", error);
       socket.emit("error", { message: "Failed to process decision" });
+    }
+  });
+
+  socket.on("delete_all_chats", async (data) => {
+    try {
+      console.log("[DELETE_ALL_CHATS]", data);
+      const { senderId, receiverId } = data;
+      // or condtion
+      const chats = await Chat.find({
+        $or: [
+          { sender: senderId, receiver: receiverId },
+          { sender: receiverId, receiver: senderId },
+        ],
+      });
+      console.log("chats", chats);
+      chats.forEach(async (chat) => {
+        try {
+          const result = await Chat.findOne({ _id: chat._id });
+          result.deleteBy.push(senderId);
+          result.deletedAt = new Date();
+          await result.save();
+          console.log("result", result);
+          socket.emit("delete_all_chats", "Chat deleted successfully");
+        } catch (error) {
+          console.error("[Fail to push the id inside array]", error);
+        }
+      });
+    } catch (error) {
+      console.error("[DELETE_ALL_CHATS_ERROR]", error);
+      socket.emit("error", { message: "Failed to delete all chats" });
     }
   });
 };
