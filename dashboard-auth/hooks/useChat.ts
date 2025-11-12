@@ -135,6 +135,7 @@ export const useChat = () => {
         socketRef.current?.emit("user_join", joinPayload);
         // Join user's personal room
         socketRef.current?.emit("join_room", user._id);
+
       }
     });
 
@@ -349,27 +350,27 @@ export const useChat = () => {
 
     socketRef.current.on("user_status_changed", (data) => {
       setUsers((prev) => {
-        const existingUser = prev.find((u) => u.name === data.name);
+        const existingUser = prev.find((u) => u.userId === data.userId || u.name === data.name);
         if (existingUser) {
           // If user goes online, trigger a sync to get latest message statuses
           if (data.status === "online") {
             setTimeout(() => {
               socketRef.current?.emit("sync_users");
-            }, 1000); // Small delay to ensure backend has processed status changes
+            }, 1000);
           }
           return prev.map((u) =>
-            u.name === data.name
+            (u.userId === data.userId || u.name === data.name)
               ? {
                   ...u,
                   id: data.id,
-                  userId: data.userId,
+                  userId: data.userId || u.userId,
                   status: data.status as "online" | "offline",
-                  lastSeen: new Date(),
+                  lastSeen: data.lastSeen ? new Date(data.lastSeen) : new Date(),
                 }
               : u
           );
         } else {
-          // Add new user if not exists
+          // Add new user if not exists (preserve them even when offline)
           const userInfo = localStorage.getItem("user");
           const currentUser = userInfo ? JSON.parse(userInfo) : null;
           const currentUserName =
@@ -379,7 +380,7 @@ export const useChat = () => {
             {
               ...data,
               status: data.status as "online" | "offline",
-              lastSeen: new Date(),
+              lastSeen: data.lastSeen ? new Date(data.lastSeen) : new Date(),
               isCurrentUser: data.name === currentUserName,
             },
           ];
@@ -395,22 +396,27 @@ export const useChat = () => {
 
       setUsers((prevUsers) => {
         const newUsers = usersList
-          .filter((user: any) => user.id)
           .map((user: any) => ({
             ...user,
-            status: user.status || ("online" as const),
-            lastSeen: new Date(),
+            status: user.status || ("offline" as const),
+            lastSeen: user.lastSeen ? new Date(user.lastSeen) : new Date(),
             isCurrentUser: user.name === currentUserName,
           }));
 
-        // Merge with existing offline users to keep them visible
-        const offlineUsers = prevUsers.filter(
-          (prevUser) =>
-            prevUser.status === "offline" &&
-            !newUsers.find((newUser) => newUser.name === prevUser.name)
-        );
+        // Preserve existing users and their unread counts
+        const mergedUsers = newUsers.map(newUser => {
+          const existingUser = prevUsers.find(u => u.userId === newUser.userId);
+          return existingUser ? { ...newUser, unreadCount: existingUser.unreadCount } : newUser;
+        });
 
-        return [...newUsers, ...offlineUsers];
+        // Add users who have chat history but aren't in the new list (preserve offline chat partners)
+        const usersWithChats = prevUsers.filter(
+          (prevUser) =>
+            !mergedUsers.find((newUser) => newUser.userId === prevUser.userId) &&
+            (messages[prevUser.name]?.length > 0 || prevUser.unreadCount > 0)
+        ).map(user => ({ ...user, status: "offline" as const }));
+
+        return [...mergedUsers, ...usersWithChats];
       });
     });
 
@@ -440,8 +446,8 @@ export const useChat = () => {
       const unreadCounts: { [key: string]: number } = {};
       const messageIds = new Set<string>();
 
-      // Process messages in reverse chronological order (newest first)
-      [...chatHistory].reverse().forEach((chat: any) => {
+      // Process messages in chronological order (oldest first)
+      chatHistory.forEach((chat: any) => {
         const senderName = chat.sender.username || chat.sender.email;
         const receiverName = chat.receiver.username || chat.receiver.email;
         const otherUser =
@@ -650,6 +656,8 @@ export const useChat = () => {
       return false;
     }
   };
+
+
 
   return {
     messages,

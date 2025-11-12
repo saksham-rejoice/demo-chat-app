@@ -51,6 +51,23 @@ const chatSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    readAt: {
+      type: Date,
+      default: null,
+    },
+    isImportant: {
+      type: Boolean,
+      default: false,
+    },
+    decision: {
+      type: String,
+      enum: ["accepted", "rejected"],
+      default: null,
+    },
+    decisionAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

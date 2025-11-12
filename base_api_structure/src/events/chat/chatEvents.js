@@ -68,16 +68,48 @@ export const handleChatEvents = (io, socket) => {
         `[USER_JOIN_SUCCESS] ${userName} (${dbUser._id}) connected with socket ${socket.id}`
       );
 
-      // Send current users list to new user
+      // Get users who have had conversations with current user + all online users
+      const chatPartners = await Chat.aggregate([
+        {
+          $match: {
+            $or: [
+              { sender: dbUser._id },
+              { receiver: dbUser._id }
+            ]
+          }
+        },
+        {
+          $group: {
+            _id: {
+              $cond: [
+                { $eq: ["$sender", dbUser._id] },
+                "$receiver",
+                "$sender"
+              ]
+            }
+          }
+        }
+      ]);
+
+      const chatPartnerIds = chatPartners.map(p => p._id);
+      
+      // Get all users (chat partners + online users)
       const allUsers = await User.find(
-        {},
+        {
+          $or: [
+            { _id: { $in: chatPartnerIds } },
+            { status: "online" }
+          ]
+        },
         "username email socketId status lastSeen"
       );
+      
       const usersList = allUsers.map((user) => ({
         id: user.socketId,
         name: user.username || user.email,
-        status: user.status,
+        status: user.status || "offline",
         userId: user._id,
+        lastSeen: user.lastSeen,
       }));
       socket.emit("users_list", usersList);
       console.info(
@@ -317,11 +349,13 @@ export const handleChatEvents = (io, socket) => {
           `[ROOM_LEFT] Socket ${socket.id} left room ${user._id.toString()}`
         );
 
-        // 3️⃣ Notify everyone (or optionally only friends / contacts)
+        // 3️⃣ Notify everyone about status change (keep user visible but offline)
         io.emit("user_status_changed", {
+          id: null, // No socket ID when offline
           userId: user._id.toString(),
           name: user.username || user.email,
           status: "offline",
+          lastSeen: user.lastSeen,
         });
 
         console.info(
@@ -551,16 +585,47 @@ export const handleChatEvents = (io, socket) => {
         return;
       }
 
-      // Send users list
+      // Get users who have had conversations with current user + all online users
+      const chatPartners = await Chat.aggregate([
+        {
+          $match: {
+            $or: [
+              { sender: currentUser._id },
+              { receiver: currentUser._id }
+            ]
+          }
+        },
+        {
+          $group: {
+            _id: {
+              $cond: [
+                { $eq: ["$sender", currentUser._id] },
+                "$receiver",
+                "$sender"
+              ]
+            }
+          }
+        }
+      ]);
+
+      const chatPartnerIds = chatPartners.map(p => p._id);
+      
+      // Send users list (chat partners + online users)
       const allUsers = await User.find(
-        {},
+        {
+          $or: [
+            { _id: { $in: chatPartnerIds } },
+            { status: "online" }
+          ]
+        },
         "username email socketId status lastSeen"
       );
       const usersList = allUsers.map((user) => ({
         id: user.socketId,
         name: user.username || user.email,
-        status: user.status,
+        status: user.status || "offline",
         userId: user._id,
+        lastSeen: user.lastSeen,
       }));
       socket.emit("users_list", usersList);
       console.info(

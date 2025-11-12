@@ -98,7 +98,10 @@ const Sidebar: React.FC<Props> = ({
           .sort((a, b) => {
             if (a.isCurrentUser) return -1;
             if (b.isCurrentUser) return 1;
-            return 0;
+            // Sort by status (online first), then by name
+            if (a.status === "online" && b.status === "offline") return -1;
+            if (a.status === "offline" && b.status === "online") return 1;
+            return a.name.localeCompare(b.name);
           })
           .map((user) => (
             <div
@@ -134,6 +137,7 @@ const Sidebar: React.FC<Props> = ({
                           ? "bg-green-400 hover:bg-green-400"
                           : "bg-gray-400 hover:bg-gray-400"
                       }`}
+                      title={user.status === "online" ? "Online" : "Offline"}
                     />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -159,9 +163,11 @@ const Sidebar: React.FC<Props> = ({
                         ? user.isCurrentUser
                           ? "You are online"
                           : "Online"
-                        : `Last seen ${new Date(
+                        : user.lastSeen
+                        ? `Last seen ${new Date(
                             user.lastSeen
-                          ).toLocaleString()}`}
+                          ).toLocaleString()}`
+                        : "Offline"}
                     </p>
                   </div>
                 </div>
