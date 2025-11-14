@@ -72,38 +72,28 @@ export const handleChatEvents = (io, socket) => {
       const chatPartners = await Chat.aggregate([
         {
           $match: {
-            $or: [
-              { sender: dbUser._id },
-              { receiver: dbUser._id }
-            ]
-          }
+            $or: [{ sender: dbUser._id }, { receiver: dbUser._id }],
+          },
         },
         {
           $group: {
             _id: {
-              $cond: [
-                { $eq: ["$sender", dbUser._id] },
-                "$receiver",
-                "$sender"
-              ]
-            }
-          }
-        }
+              $cond: [{ $eq: ["$sender", dbUser._id] }, "$receiver", "$sender"],
+            },
+          },
+        },
       ]);
 
-      const chatPartnerIds = chatPartners.map(p => p._id);
-      
+      const chatPartnerIds = chatPartners.map((p) => p._id);
+
       // Get all users (chat partners + online users)
       const allUsers = await User.find(
         {
-          $or: [
-            { _id: { $in: chatPartnerIds } },
-            { status: "online" }
-          ]
+          $or: [{ _id: { $in: chatPartnerIds } }, { status: "online" }],
         },
         "username email socketId status lastSeen"
       );
-      
+
       const usersList = allUsers.map((user) => ({
         id: user.socketId,
         name: user.username || user.email,
@@ -589,11 +579,8 @@ export const handleChatEvents = (io, socket) => {
       const chatPartners = await Chat.aggregate([
         {
           $match: {
-            $or: [
-              { sender: currentUser._id },
-              { receiver: currentUser._id }
-            ]
-          }
+            $or: [{ sender: currentUser._id }, { receiver: currentUser._id }],
+          },
         },
         {
           $group: {
@@ -601,22 +588,19 @@ export const handleChatEvents = (io, socket) => {
               $cond: [
                 { $eq: ["$sender", currentUser._id] },
                 "$receiver",
-                "$sender"
-              ]
-            }
-          }
-        }
+                "$sender",
+              ],
+            },
+          },
+        },
       ]);
 
-      const chatPartnerIds = chatPartners.map(p => p._id);
-      
+      const chatPartnerIds = chatPartners.map((p) => p._id);
+
       // Send users list (chat partners + online users)
       const allUsers = await User.find(
         {
-          $or: [
-            { _id: { $in: chatPartnerIds } },
-            { status: "online" }
-          ]
+          $or: [{ _id: { $in: chatPartnerIds } }, { status: "online" }],
         },
         "username email socketId status lastSeen"
       );
