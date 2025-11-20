@@ -2,13 +2,9 @@ import mongoose from "mongoose";
 
 const instagramPostSchema = new mongoose.Schema(
   {
-    title: {
+    caption: {
       type: String,
       required: true,
-      trim: true,
-    },
-    description: {
-      type: String,
       trim: true,
     },
     imageDetails: {

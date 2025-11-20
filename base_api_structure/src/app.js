@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
+import morgan from "morgan";
 dotenv.config();
 connectDB();
 
@@ -17,6 +18,7 @@ const io = new Server(server, {
   },
 });
 app.use(cors());
+app.use(morgan("dev"));
 app.use(json());
 
 const PORT = process.env.PORT || 5000;

@@ -1,6 +1,6 @@
-import { Home, Users, Settings, MessageSquare } from "lucide-react";
+import { Home, Users, Settings, MessageSquare, Instagram } from "lucide-react";
 import Link from "next/link";
-
+import InstagramIcon from "@/components/ui/InstagramIcon";
 const Sidebar = () => {
   const menuItems = [
     { icon: Home, label: "Dashboard", href: "/dashboard", disable: false },
@@ -12,11 +12,17 @@ const Sidebar = () => {
       disable: true,
     },
     {
-      icon:MessageSquare,
+      icon: MessageSquare,
       label: "Messages",
       href: "/dashboard/chat-section",
       disable: false,
-    }
+    },
+    {
+      icon: InstagramIcon,
+      label: "Instagram",
+      href: "/dashboard/instagram",
+      disable: false,
+    },
   ];
 
   return (

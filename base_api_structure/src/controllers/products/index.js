@@ -1,12 +1,12 @@
-import { success, badRequest } from "../../helpers";
+import { success, badRequest, internalServerError } from "../../helpers";
 
 export const getProducts = async (req, res) => {
   try {
     const response = await fetch("https://dummyjson.com/products");
     const data = await response.json();
-    success(req, res, data);
+    success(res, "Products fetched successfully", data);
   } catch (error) {
-    badRequest(req, res, error, "Error fetching products");
+    internalServerError(res, "Error fetching products");
   }
 };
 
@@ -15,8 +15,8 @@ export const getProductById = async (req, res) => {
     const { id } = req.params;
     const response = await fetch(`https://dummyjson.com/products/${id}`);
     const data = await response.json();
-    success(req, res, data);
+    success(res, "Product fetched successfully", data);
   } catch (error) {
-    badRequest(req, res, error, "Error fetching product");
+    internalServerError(res, "Error fetching product");
   }
 };

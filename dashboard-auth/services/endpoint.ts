@@ -1,18 +1,39 @@
 let apiEndpoints = {
   auth: {
-    login: "http://localhost:5000/api/auth/login",
-    register: "http://localhost:5000/api/auth/register",
+    login: "/api/auth/login",
+    register: "/api/auth/register",
+    refresh: "/api/auth/refresh",
   },
   product:{
-    list: "http://localhost:5000/api/products",
-    details: "http://localhost:5000/api/products",
+    list: "/api/products",
+    details: "/api/products",
   },
   cart:{
-    addItem: "http://localhost:5000/api/cart/create",
-    removeItem: "http://localhost:5000/api/cart/remove",
-    viewCart: "http://localhost:5000/api/cart/list",
-    updateCart: "http://localhost:5000/api/cart/update",
-    clearCart: "http://localhost:5000/api/cart/clear",
+    addItem: "/api/cart/create",
+    removeItem: "/api/cart/remove",
+    viewCart: "/api/cart/list",
+    updateCart: "/api/cart/update",
+    clearCart: "/api/cart/clear",
+  },
+  instagram: {
+    posts: {
+      create: "/api/instagram/posts",
+      list: "/api/instagram/posts",
+      getById: "/api/instagram/posts",
+      update: "/api/instagram/posts",
+    },
+    comments: {
+      create: "/api/instagram/comments",
+      list: "/api/instagram/comments",
+      update: "/api/instagram/comments",
+      delete: "/api/instagram/comments",
+      reply: "/api/instagram/comments",
+    },
+    savedPosts: {
+      save: "/api/instagram/saved-posts",
+      list: "/api/instagram/saved-posts",
+      remove: "/api/instagram/saved-posts",
+    }
   }
 };
 

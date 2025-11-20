@@ -1,22 +1,20 @@
-export const success = (request, response, options) => {
+export const success = (response, message, data) => {
   response.status(200).json({
-    data: options,
-    message: "success",
+    data,
+    message,
     error: false,
     success: true,
   });
 };
-export const badRequest = (request, response, err, message) => {
-  response.status(500).json({
-    err,
+export const badRequest = (response, message) => {
+  response.status(400).json({
     message,
     error: true,
     success: false,
   });
 };
-export const internalServerError = (request, response, err, message) => {
+export const internalServerError = (response, message) => {
   response.status(500).json({
-    err,
     message,
     error: true,
     success: false,

@@ -1,16 +1,16 @@
 import { uploadFile, getFileUrl } from "../../services/fileService.js";
-import { success, badRequest } from "../../helpers";
+import { success, badRequest, internalServerError } from "../../helpers";
 
 export const uploadFileController = async (req, res) => {
   try {
     if (!req.file) {
-      return badRequest(req, res, null, "No file provided");
+      return badRequest(res, "No file provided");
     }
 
     const result = await uploadFile(req.file, req.body.fileName);
-    success(req, res, result);
+    success(res, "File uploaded successfully", result);
   } catch (error) {
-    badRequest(req, res, error, "File upload failed");
+    internalServerError(res, "File upload failed");
   }
 };
 
@@ -18,8 +18,8 @@ export const getFileController = async (req, res) => {
   try {
     const { fileId } = req.params;
     const url = await getFileUrl(fileId);
-    success(req, res, { url });
+    success(res, "File retrieved successfully", { url });
   } catch (error) {
-    badRequest(req, res, error, "Failed to get file");
+    internalServerError(res, "Failed to get file");
   }
 };

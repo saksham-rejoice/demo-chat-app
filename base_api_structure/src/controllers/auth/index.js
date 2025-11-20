@@ -1,9 +1,13 @@
 import jwt from "jsonwebtoken";
 import { User } from "../../models";
-import { success, badRequest } from "../../helpers";
+import { success, badRequest, internalServerError } from "../../helpers";
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "30d" });
+const generateAccessToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+};
+
+const generateRefreshToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
 };
 
 export const register = async (req, res) => {
@@ -12,17 +16,19 @@ export const register = async (req, res) => {
 
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     if (existingUser) {
-      return badRequest(req, res, null, "User already exists");
+      return badRequest(res, "User already exists");
     }
 
     const user = await User.create({ username, email, password });
-    const token = generateToken(user._id);
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
 
-    success(req, res, {
-      message: "User registered successfully"
+    success(res, "User registered successfully", {
+      accessToken,
+      refreshToken
     });
   } catch (error) {
-    badRequest(req, res, error, "Registration failed");
+    internalServerError(res, "Registration failed");
   }
 };
 
@@ -32,14 +38,15 @@ export const login = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user || !(await user.comparePassword(password))) {
-      return badRequest(req, res, null, "Invalid credentials");
+      return badRequest(res, "Invalid credentials");
     }
 
-    const token = generateToken(user._id);
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
 
-    success(req, res, {
-      accessToken: token,
-      message: "Login Successful",
+    success(res, "Login Successful", {
+      accessToken,
+      refreshToken,
       user: {
         id: user._id,
         username: user.username,
@@ -47,6 +54,33 @@ export const login = async (req, res) => {
       }
     });
   } catch (error) {
-    badRequest(req, res, error, "Login failed");
+    internalServerError(res, "Login failed");
+  }
+};
+
+export const refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return badRequest(res, "Refresh token is required");
+    }
+
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    const user = await User.findById(decoded.id).select("-password");
+    
+    if (!user) {
+      return badRequest(res, "Invalid refresh token");
+    }
+
+    const newAccessToken = generateAccessToken(user._id);
+    const newRefreshToken = generateRefreshToken(user._id);
+
+    success(res, "Token refreshed successfully", {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken
+    });
+  } catch (error) {
+    badRequest(res, "Invalid refresh token");
   }
 };

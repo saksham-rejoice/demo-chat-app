@@ -1,5 +1,5 @@
 import { Cart } from "../../models";
-import { success, badRequest } from "../../helpers";
+import { success, badRequest, internalServerError } from "../../helpers";
 
 export const addToCart = async (req, res) => {
   try {
@@ -15,9 +15,9 @@ export const addToCart = async (req, res) => {
     }
     
     await cart.save();
-    success(req, res, { message: "Added to cart successfully" });
+    success(res, "Added to cart successfully", {});
   } catch (error) {
-    badRequest(req, res, error, "Error adding to cart");
+    internalServerError(res, "Error adding to cart");
   }
 };
 
@@ -27,12 +27,12 @@ export const getCart = async (req, res) => {
     const cart = await Cart.findOne({ userId });
     
     if (!cart) {
-      return success(req, res, { items: [] });
+      return success(res, "Cart is empty", { items: [] });
     }
     
-    success(req, res, { items: [cart.products] });
+    success(res, "Cart fetched successfully", { items: [cart.products] });
   } catch (error) {
-    badRequest(req, res, error, "Failed to fetch cart items");
+    internalServerError(res, "Failed to fetch cart items");
   }
 };
 
@@ -47,9 +47,9 @@ export const updateCart = async (req, res) => {
       { new: true, upsert: true }
     );
 
-    success(req, res, { message: "Cart updated successfully" });
+    success(res, "Cart updated successfully", {});
   } catch (error) {
-    badRequest(req, res, error, "Error updating cart");
+    internalServerError(res, "Error updating cart");
   }
 };
 
@@ -63,8 +63,8 @@ export const removeFromCart = async (req, res) => {
       { products }
     );
 
-    success(req, res, { message: "Cart item removed successfully" });
+    success(res, "Cart item removed successfully", {});
   } catch (error) {
-    badRequest(req, res, error, "Error removing cart item");
+    internalServerError(res, "Error removing cart item");
   }
 };

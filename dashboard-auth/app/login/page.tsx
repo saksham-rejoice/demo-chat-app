@@ -3,16 +3,14 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import LoginPage from "@/components/auth/Login";
 import { isAuthEnabled } from "@/lib/auth";
+import { isAuthenticated } from "@/lib/tokenUtils";
 
 const Login = () => {
   const router = useRouter();
 
   useEffect(() => {
-    if (isAuthEnabled()) {
-      const token = localStorage.getItem("accessToken");
-      if (token) {
-        router.push("/dashboard");
-      }
+    if (isAuthEnabled() && isAuthenticated()) {
+      router.push("/dashboard");
     }
   }, [router]);
 
