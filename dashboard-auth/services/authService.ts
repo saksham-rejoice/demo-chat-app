@@ -79,3 +79,12 @@ export const refreshAccessToken = async () => {
     throw error;
   }
 };
+
+export const getUserData = async () => {
+  try {
+    const response = await apiClient.get(apiEndpoints.auth.user);
+    return response.data.data;
+  } catch (error: any) {
+    throw error.response?.data?.message || "Failed to fetch user data";
+  }
+};

@@ -1,6 +1,7 @@
 "use client";
-import { Bookmark, Heart, MoreHorizontal, Send } from "lucide-react";
+import { Heart, MoreHorizontal, Send } from "lucide-react";
 import CommentDialog from "./CommentDialog";
+import SavedDialog from "./SavedDialog";
 
 interface Post {
   id: number;
@@ -32,7 +33,9 @@ const InstagramPost = ({ posts, liked, toggleLike }: InstagramPostProps) => {
               <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-400 to-pink-400 flex items-center justify-center text-lg">
                 {post.avatar}
               </div>
-              <span className="font-semibold text-sm text-white">{post.username}</span>
+              <span className="font-semibold text-sm text-white">
+                {post.username}
+              </span>
             </div>
             <button>
               <MoreHorizontal className="w-5 h-5 text-gray-300" />
@@ -42,9 +45,16 @@ const InstagramPost = ({ posts, liked, toggleLike }: InstagramPostProps) => {
           {/* Post Image */}
           <div className="w-full h-[480px] md:h-[560px] relative">
             {post.image.startsWith("http") ? (
-              <img src={post.image} alt={post.caption} className="w-full h-full object-cover" />
+              <img
+                src={post.image}
+                alt={post.caption}
+                className="w-full h-full object-cover"
+              />
             ) : (
-              <div className="w-full h-full" style={{ background: post.image }} />
+              <div
+                className="w-full h-full"
+                style={{ background: post.image }}
+              />
             )}
           </div>
 
@@ -52,8 +62,17 @@ const InstagramPost = ({ posts, liked, toggleLike }: InstagramPostProps) => {
           <div className="px-4 pt-3 pb-2">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-4">
-                <button onClick={() => toggleLike(post.id)} className="transition-transform hover:scale-110">
-                  <Heart className={`w-6 h-6 ${liked[post.id] ? "fill-red-500 text-red-500" : "text-white"}`} />
+                <button
+                  onClick={() => toggleLike(post.id)}
+                  className="transition-transform hover:scale-110"
+                >
+                  <Heart
+                    className={`w-6 h-6 ${
+                      liked[post.id]
+                        ? "fill-red-500 text-red-500"
+                        : "text-white"
+                    }`}
+                  />
                 </button>
 
                 {/* extracted comment dialog */}
@@ -63,13 +82,13 @@ const InstagramPost = ({ posts, liked, toggleLike }: InstagramPostProps) => {
                   <Send className="w-6 h-6 text-white" />
                 </button>
               </div>
-              <button className="transition-transform hover:scale-110">
-                <Bookmark className="w-6 h-6 text-white" />
-              </button>
+              <SavedDialog post={post} />
             </div>
 
             {/* Likes */}
-            <p className="font-semibold text-sm mb-2 text-white">{post.likes} likes</p>
+            <p className="font-semibold text-sm mb-2 text-white">
+              {post.likes} likes
+            </p>
 
             {/* Caption */}
             <p className="text-sm text-gray-200">

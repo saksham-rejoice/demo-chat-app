@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashBoardPage from "@/components/dashboard";
 import { isAuthEnabled } from "@/lib/auth";
-import { isAuthenticated } from "@/lib/tokenUtils";
+import { isAuthenticated, validateAndRedirect } from "@/lib/tokenUtils";
 
 const Dashboard = () => {
   const router = useRouter();
@@ -11,6 +11,9 @@ const Dashboard = () => {
 
   useEffect(() => {
     setIsClient(true);
+    if (isAuthEnabled()) {
+      validateAndRedirect();
+    }
   }, []);
 
   useEffect(() => {

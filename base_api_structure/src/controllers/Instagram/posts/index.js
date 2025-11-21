@@ -8,25 +8,16 @@ import InstagramImage from "../../../models/Instagram/InstagramImage";
 import { uploadImage, deleteImage } from "../../../services/imageService";
 import { cleanupTempFile } from "../../../middleware/upload.js";
 
-export async function createPost(req, res) {
+//image management
+
+export async function uploadPostImage(request, response) {
   try {
-    const { caption, hashtags, location } = req.body;
-    const userId = req.user._id;
-    if (!caption) {
-      return badRequest(res, "Caption is required");
-    }
-    if (!hashtags) {
-      return badRequest(res, "Hashtags is required");
-    }
-    if (!location) {
-      return badRequest(res, "Location is required");
-    }
-    const file = req.file;
+    const file = request.file;
+    const userId = request.user._id;
     if (!file) {
-      return badRequest(res, "Post image is rquired");
+      return badRequest(response, "No file uploaded");
     }
     const uploadResult = await uploadImage(file, "instagram/posts");
-    const parsedHashtags = JSON.parse(hashtags);
     const imageData = {
       url: uploadResult.url,
       filename: uploadResult.fileName,
@@ -35,15 +26,51 @@ export async function createPost(req, res) {
     };
     const instagramImage = new InstagramImage(imageData);
     await instagramImage.save();
+    return success(response, "Image uploaded successfully", {
+      url: instagramImage.url,
+      _id: instagramImage._id,
+    });
+  } catch (error) {
+    return internalServerError(response, error.message);
+  }
+}
+
+export async function deleteUploadImage(request, response) {
+  try {
+    const { id } = request.params;
+    const result = await InstagramImage.findOne({ _id: id }).select("fileId");
+    await deleteImage(result.fileId);
+    await InstagramImage.findByIdAndDelete(id);
+    return success(response, "Image deleted successfully", {
+      fileId: result.fileId,
+    });
+  } catch (error) {
+    return internalServerError(response, error.message);
+  }
+}
+
+export async function createPost(req, res) {
+  try {
+    const { caption, hashtags, location, imageId } = req.body;
+    const userId = req.user._id;
+    if (!caption) {
+      return badRequest(res, "Caption is required");
+    }
+    if (hashtags.length === 0) {
+      return badRequest(res, "Hashtags is required");
+    }
+    if (!location) {
+      return badRequest(res, "Location is required");
+    }
     const post = new InstagramPost({
       caption: caption,
-      hashtags: parsedHashtags,
+      hashtags: hashtags,
       location: location,
-      imageDetails: instagramImage._id,
+      imageDetails: imageId,
       user: userId,
     });
     await post.save();
-    return success(res, "Post created successfully", { post });
+    return success(res, "Post publish successfully");
   } catch (error) {
     console.error("Error creating post:", error);
     return internalServerError(res, error.message);
@@ -59,25 +86,25 @@ export const getPosts = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
-    
+
     const posts = await InstagramPost.find()
       .populate("user", "username email")
       .populate("imageDetails", "url")
       .sort({ createdAt: -1 })
       .skip(offset)
       .limit(limit);
-      
+
     const totalPosts = await InstagramPost.countDocuments();
     const hasMore = offset + posts.length < totalPosts;
-    
-    return success(res, "Posts fetched successfully", { 
-      posts, 
+
+    return success(res, "Posts fetched successfully", {
+      posts,
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(totalPosts / limit),
         totalPosts,
-        hasMore
-      }
+        hasMore,
+      },
     });
   } catch (error) {
     console.error("Error fetching posts:", error);
@@ -158,6 +185,60 @@ export const deletePost = async (req, res) => {
     return success(res, "Post deleted successfully");
   } catch (error) {
     console.error("Error deleting post:", error);
+    return internalServerError(res, error.message);
+  }
+};
+
+export const trendingHastags = async (request, response) => {
+  try {
+    const trendingHashtags = await InstagramPost.aggregate([
+      { $match: { hashtags: { $exists: true, $ne: [], $ne: null } } },
+      { $unwind: "$hashtags" },
+      { $match: { hashtags: { $ne: null, $ne: "" } } },
+      { $group: { _id: "$hashtags", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      // { $limit: 10 },
+      { $project: { hashtag: "$_id", count: 1, _id: 0 } },
+    ]);
+    return success(response, "Trending hashtags fetched successfully", {
+      trendingHashtags,
+    });
+  } catch (error) {
+    console.error("Error fetching trending hashtags:", error);
+    return internalServerError(res, error.message);
+  }
+};
+
+export const getPostsByHashtag = async (req, res) => {
+  try {
+    const { hashtag } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    const posts = await InstagramPost.find({ hashtags: hashtag })
+      .populate("user", "username email")
+      .populate("imageDetails", "url")
+      .sort({ createdAt: -1 })
+      .skip(offset)
+      .limit(limit);
+
+    const totalPosts = await InstagramPost.countDocuments({
+      hashtags: hashtag,
+    });
+    const hasMore = offset + posts.length < totalPosts;
+
+    return success(res, "Posts fetched successfully", {
+      posts,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalPosts / limit),
+        totalPosts,
+        hasMore,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching posts by hashtag:", error);
     return internalServerError(res, error.message);
   }
 };

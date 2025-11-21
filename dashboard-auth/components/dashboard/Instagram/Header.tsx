@@ -1,18 +1,10 @@
 "use client";
 import { Menu } from "lucide-react";
-import { useState, useEffect } from "react";
 import InstagramIcon from "../../ui/InstagramIcon";
-export default function Header() {
-  const [user, setUser] = useState<any>(null);
+import { useUser } from "../../../hooks/useUser";
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("user");
-      if (raw) setUser(JSON.parse(raw));
-    } catch (e) {
-      setUser(null);
-    }
-  }, []);
+export default function Header() {
+  const { user } = useUser();
 
   const getInitials = (nameOrEmail?: string) => {
     if (!nameOrEmail) return "G";

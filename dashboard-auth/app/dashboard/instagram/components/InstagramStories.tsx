@@ -1,4 +1,4 @@
-
+'use client'
 interface Stories {
   id: number;
   username: string;
@@ -6,9 +6,19 @@ interface Stories {
   isYour: boolean;
 }
 
-const InstagramStories = ({ stories }: { stories: Stories[] }) => {
+const InstagramStories = () => {
+  const stories: Stories[] = [
+    { id: 1, username: "Your Story", avatar: "👤", isYour: true },
+    { id: 2, username: "lebaner...", avatar: "🎨", isYour: false },
+    { id: 3, username: "smallipsa", avatar: "👩", isYour: false },
+    { id: 4, username: "dylanclark", avatar: "👨", isYour: false },
+    { id: 5, username: "rhianna", avatar: "💃", isYour: false },
+    { id: 6, username: "shakilay", avatar: "🎭", isYour: false },
+    { id: 7, username: "edelstep", avatar: "🎪", isYour: false },
+    { id: 8, username: "gucci", avatar: "👜", isYour: false },
+  ];
   return (
-    <div className="mb-6 border-b border-gray-800 pb-4">
+    <div className="mb-6  pb-4">
       <div className="flex gap-4 overflow-x-auto scrollbar-hide">
         {stories.map((story) => (
           <div

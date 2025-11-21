@@ -3,11 +3,11 @@ import { User } from "../../models";
 import { success, badRequest, internalServerError } from "../../helpers";
 
 const generateAccessToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
 
 const generateRefreshToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
+  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, { expiresIn: "30d" });
 };
 
 export const register = async (req, res) => {
@@ -25,7 +25,7 @@ export const register = async (req, res) => {
 
     success(res, "User registered successfully", {
       accessToken,
-      refreshToken
+      refreshToken,
     });
   } catch (error) {
     internalServerError(res, "Registration failed");
@@ -50,8 +50,8 @@ export const login = async (req, res) => {
       user: {
         id: user._id,
         username: user.username,
-        email: user.email
-      }
+        email: user.email,
+      },
     });
   } catch (error) {
     internalServerError(res, "Login failed");
@@ -61,16 +61,22 @@ export const login = async (req, res) => {
 export const refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    
+
     if (!refreshToken) {
       return badRequest(res, "Refresh token is required");
     }
 
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    } catch (jwtError) {
+      return badRequest(res, "Invalid or expired refresh token");
+    }
+
     const user = await User.findById(decoded.id).select("-password");
-    
+
     if (!user) {
-      return badRequest(res, "Invalid refresh token");
+      return badRequest(res, "User not found");
     }
 
     const newAccessToken = generateAccessToken(user._id);
@@ -78,9 +84,25 @@ export const refreshToken = async (req, res) => {
 
     success(res, "Token refreshed successfully", {
       accessToken: newAccessToken,
-      refreshToken: newRefreshToken
+      refreshToken: newRefreshToken,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+      },
     });
   } catch (error) {
-    badRequest(res, "Invalid refresh token");
+    console.error("Refresh token error:", error);
+    internalServerError(res, "Token refresh failed");
+  }
+};
+
+export const userDetailsByToken = async (request, response) => {
+  try {
+    const { id } = request.user;
+    const user = await User.findById(id).select("_id username email");
+    success(response, "User details fetched successfully", user);
+  } catch (error) {
+    internalServerError(response, error.message);
   }
 };
