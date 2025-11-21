@@ -413,7 +413,7 @@ export const useChat = () => {
         const usersWithChats = prevUsers.filter(
           (prevUser) =>
             !mergedUsers.find((newUser) => newUser.userId === prevUser.userId) &&
-            (messages[prevUser.name]?.length > 0 || prevUser.unreadCount > 0)
+            (messages[prevUser.name]?.length > 0 || (prevUser.unreadCount || 0) > 0)
         ).map(user => ({ ...user, status: "offline" as const }));
 
         return [...mergedUsers, ...usersWithChats];

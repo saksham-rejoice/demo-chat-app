@@ -25,17 +25,9 @@ export default function Header() {
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
-              {user?.avatar ? (
-                <img
-                  src={user.avatar}
-                  alt={user.username || user.email || "User avatar"}
-                  className="w-9 h-9 rounded-full object-cover border border-gray-700"
-                />
-              ) : (
-                <div className="w-9 h-9 rounded-full bg-gray-700 text-white flex items-center justify-center font-medium">
-                  {getInitials(user?.username || user?.email)}
-                </div>
-              )}
+              <div className="w-9 h-9 rounded-full bg-gray-700 text-white flex items-center justify-center font-medium">
+                {getInitials(user?.username || user?.email)}
+              </div>
               <span className="text-white font-medium">
                 {user?.username || user?.email || "Guest"}
               </span>

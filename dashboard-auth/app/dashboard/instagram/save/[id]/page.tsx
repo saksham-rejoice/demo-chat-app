@@ -1,8 +1,6 @@
 "use client";
-import {
-  getSavedPosts,
-  SavedCollectionData,
-} from "@/services/instagramService";
+import { getSavedPosts } from "@/services/instagramService";
+import { SavedCollectionData } from "@/types/instagram";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";

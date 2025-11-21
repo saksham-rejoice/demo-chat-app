@@ -86,10 +86,10 @@ export default function CommentDialog({ post }: { post: Post }) {
 
     setIsPosting(true);
     try {
-      const newComment = await postComment(post.id, text);
-      setComments(prev => [newComment, ...prev]);
+      await postComment(post.id, text);
       setInput("");
       toast.success("Comment posted!");
+      await fetchComments();
     } catch (error) {
       toast.error("Failed to post comment");
     } finally {

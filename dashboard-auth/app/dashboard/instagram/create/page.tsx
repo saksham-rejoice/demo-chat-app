@@ -36,7 +36,7 @@ export default function CreateInstagramPost() {
   const [isUploading, setIsUploading] = useState(false);
 
   const userName = user?.username || "your_username";
-  const userImage = user?.profilePicture;
+  const userImage = undefined;
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
