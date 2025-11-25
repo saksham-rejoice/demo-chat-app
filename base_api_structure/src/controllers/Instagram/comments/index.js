@@ -2,7 +2,7 @@ import {
   success,
   internalServerError,
   badRequest,
-} from "../../../helpers/api-response";
+} from "../../../helpers/api-response.js";
 import Comment from "../../../models/Instagram/Comments.js";
 
 // Comment CRUD

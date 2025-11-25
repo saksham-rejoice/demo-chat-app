@@ -2,11 +2,12 @@ import {
   success,
   internalServerError,
   badRequest,
-} from "../../../helpers/api-response";
-import InstagramPost from "../../../models/Instagram/instagramPost";
-import InstagramImage from "../../../models/Instagram/InstagramImage";
-import { uploadImage, deleteImage } from "../../../services/imageService";
+} from "../../../helpers/api-response.js";
+import InstagramPost from "../../../models/Instagram/instagramPost.js";
+import InstagramImage from "../../../models/Instagram/InstagramImage.js";
+import { uploadImage, deleteImage } from "../../../services/imageService.js";
 import { cleanupTempFile } from "../../../middleware/upload.js";
+import { logInfo, logError } from "../../../services/loggerService.js";
 
 //image management
 
@@ -26,6 +27,7 @@ export async function uploadPostImage(request, response) {
     };
     const instagramImage = new InstagramImage(imageData);
     await instagramImage.save();
+    logInfo("Instagram image uploaded", { userId, action: "INSTAGRAM_IMAGE_UPLOAD", imageId: instagramImage._id, ip: request.ip });
     return success(response, "Image uploaded successfully", {
       url: instagramImage.url,
       _id: instagramImage._id,
@@ -70,6 +72,7 @@ export async function createPost(req, res) {
       user: userId,
     });
     await post.save();
+    logInfo("Instagram post created", { userId, action: "INSTAGRAM_POST_CREATE", postId: post._id, ip: req.ip });
     return success(res, "Post publish successfully");
   } catch (error) {
     console.error("Error creating post:", error);
@@ -182,6 +185,7 @@ export const deletePost = async (req, res) => {
       await InstagramImage.findByIdAndDelete(post.imageDetails);
     }
     await InstagramPost.findByIdAndDelete(id);
+    logInfo("Instagram post deleted", { userId, action: "INSTAGRAM_POST_DELETE", postId: id, ip: req.ip });
     return success(res, "Post deleted successfully");
   } catch (error) {
     console.error("Error deleting post:", error);

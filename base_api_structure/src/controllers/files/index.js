@@ -1,5 +1,6 @@
 import { uploadFile, getFileUrl } from "../../services/fileService.js";
 import { success, badRequest, internalServerError } from "../../helpers";
+import { logInfo, logError } from "../../services/loggerService.js";
 
 export const uploadFileController = async (req, res) => {
   try {
@@ -8,8 +9,10 @@ export const uploadFileController = async (req, res) => {
     }
 
     const result = await uploadFile(req.file, req.body.fileName);
+    logInfo("File uploaded successfully", { userId: req.user._id, action: "FILE_UPLOAD", fileName: result.fileName, ip: req.ip });
     success(res, "File uploaded successfully", result);
   } catch (error) {
+    logError("File upload failed", { userId: req.user._id, action: "FILE_UPLOAD", error: error.message, ip: req.ip });
     internalServerError(res, "File upload failed");
   }
 };

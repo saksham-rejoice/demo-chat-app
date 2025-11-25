@@ -6,35 +6,61 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/useUser";
 import { Badge } from "@/components/ui/badge";
+import SectionSkeleton from "./SectionSkeleton";
+import { useAppDispatch } from "@/store/hooks";
+import { logActivityAsync, refreshActivity } from "@/store/slices/instagramSlice";
+import { ActivityLogRequest } from "@/types/instagram";
 export default function SuggestedUsersSection() {
   const loggedUser = useUser();
   const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const data = await getSuggestedUsers();
-        console.log(data);
 
-        setSuggestedUsers(data.data?.users || []);
+        setSuggestedUsers(data.data || []);
       } catch (error) {
         console.error("Failed to fetch suggested users:", error);
         toast.error("Failed to fetch suggested users");
+      } finally {
+        setLoading(false);
       }
     };
     fetchUsers();
   }, []);
 
+  const dispatch = useAppDispatch();
+
   const handleFollowing = async (id: string) => {
     try {
       const data = await followUser(id);
+      
+      // Log activity based on the response
+      const activityType = data.message.includes("followed") ? "FOLLOW" : "UNFOLLOW";
+      
+      const activityData: ActivityLogRequest = {
+        type: activityType,
+        targetUser: id,
+        metadata: {
+          message: data.message,
+          timestamp: new Date().toISOString(),
+        },
+      };
+      
+      dispatch(logActivityAsync(activityData));
+      dispatch(refreshActivity());
+      
       if (data.success) {
-        toast.success("User followed successfully");
+        toast.success(data.message);
       }
     } catch (error) {
       console.log(error);
-      toast.error("Failed to follow user");
+      toast.error("Failed to follow/unfollow user");
     }
   };
+
+  if (loading) return <SectionSkeleton title="Suggested" />;
 
   return (
     <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 h-48">

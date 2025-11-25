@@ -1,6 +1,6 @@
 import multer from "multer";
-import { uploadFileController, getFileController } from "../../controllers/files";
-import { authenticate } from "../../middleware/auth";
+import { uploadFileController, getFileController } from "../../controllers/files/index.js";
+import { authenticate } from "../../middleware/auth.js";
 
 const upload = multer({ storage: multer.memoryStorage() });
 

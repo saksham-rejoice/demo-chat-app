@@ -1,5 +1,5 @@
-import { addToCart, getCart, updateCart, removeFromCart } from "../../controllers/cart";
-import { authenticate } from "../../middleware/auth";
+import { addToCart, getCart, updateCart, removeFromCart } from "../../controllers/cart/index.js";
+import { authenticate } from "../../middleware/auth.js";
 
 export const cartRouter = (app) => {
   app.post("/api/cart/create", authenticate, addToCart);

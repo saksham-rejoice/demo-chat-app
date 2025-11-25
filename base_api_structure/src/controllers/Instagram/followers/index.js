@@ -2,13 +2,14 @@ import {
   internalServerError,
   badRequest,
   success,
-} from "../../../helpers/api-response";
-import UserModel from "../../../models/User";
+} from "../../../helpers/api-response.js";
+import UserModel from "../../../models/User.js";
+import { logInfo, logCatchError } from "../../../services/loggerService.js";
 
 export async function toggleFollower(request, response) {
   try {
     const { userId } = request.body;
-    const { id } = request.user; // logged-in user
+    const { id } = request.user;
 
     if (!userId) {
       return badRequest(response, "userId is required");
@@ -17,10 +18,8 @@ export async function toggleFollower(request, response) {
     if (userId === id) {
       return badRequest(response, "You cannot follow yourself");
     }
-
-    // Logged-in user
     const currentUser = await UserModel.findById(id);
-    // User being followed/unfollowed
+
     const targetUser = await UserModel.findById(userId);
 
     if (!currentUser || !targetUser) {
@@ -37,6 +36,12 @@ export async function toggleFollower(request, response) {
       await currentUser.save();
       await targetUser.save();
 
+      logInfo("User unfollowed", {
+        userId: id,
+        targetUserId: userId,
+        action: "UNFOLLOW",
+        ip: request.ip,
+      });
       return success(response, "User unfollowed successfully", {
         userId,
         followed: false,
@@ -49,12 +54,19 @@ export async function toggleFollower(request, response) {
       await currentUser.save();
       await targetUser.save();
 
+      logInfo("User followed", {
+        userId: id,
+        targetUserId: userId,
+        action: "FOLLOW",
+        ip: request.ip,
+      });
       return success(response, "User followed successfully", {
         userId,
         followed: true,
       });
     }
   } catch (error) {
+    logCatchError(error, { action: "TOGGLE_FOLLOW", userId: request.user?.id });
     return internalServerError(response, error.message);
   }
 }
@@ -70,15 +82,45 @@ export async function getFollowers(request, response) {
       followers: user.followers,
     });
   } catch (error) {
+    logCatchError(error, { action: "GET_FOLLOWERS", userId: request.user?.id });
     return internalServerError(response, error.message);
   }
 }
 
-export async function getUsers(request, response) {
+export async function getSuggestedUsers(request, response) {
   try {
-    const users = await UserModel.find({}, "username");
-    return success(response, "Users fetched successfully", { users });
+    try {
+      const { id } = request.user; 
+
+      const loggedInUser = await UserModel.findById(id).select(
+        "followers following"
+      );
+      if (!loggedInUser) {
+        return badRequest(response, "User not found");
+      }
+      const allUsers = await UserModel.find().select(
+        "username followers following"
+      );
+      let suggestedUsers = allUsers.filter((user) => {
+        return (
+          user._id.toString() !== id.toString() &&
+          !loggedInUser.following.includes(user._id) &&
+          !loggedInUser.followers.includes(user._id) &&
+          !user.followers.includes(id) &&
+          !user.following.includes(id)
+        );
+      });
+      const cleanSuggestedUsers = suggestedUsers.map((user) => ({
+        _id: user._id,
+        username: user.username,
+      }));
+      return success(response, "Suggested users fetched", cleanSuggestedUsers);
+    } catch (error) {
+      logCatchError(error, { action: "GET_SUGGESTED_USERS_INNER", userId: request.user?.id });
+      return badRequest(response, "Something went wrong");
+    }
   } catch (error) {
+    logCatchError(error, { action: "GET_SUGGESTED_USERS", userId: request.user?.id });
     return internalServerError(response, error.message);
   }
 }
@@ -94,6 +136,7 @@ export async function getFollowing(request, response) {
       following: user.following,
     });
   } catch (error) {
+    logCatchError(error, { action: "GET_FOLLOWING", userId: request.user?.id });
     return internalServerError(response, error.message);
   }
 }

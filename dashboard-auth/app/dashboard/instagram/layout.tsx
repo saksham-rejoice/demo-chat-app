@@ -11,7 +11,6 @@ import TrendingSection from "./components/TrendingSection";
 import ActivitySection from "./components/ActivitySection";
 import FollowingSection from "./components/FollowingSection";
 import BreadCrumbSection from "./components/BreadCrumbSection";
-
 // Types
 interface Stories {
   id: number;
@@ -59,6 +58,8 @@ export default function InstagramLayout({
                 <FollowingSection />
                 <SuggestedUsersSection />
                 <TrendingSection />
+              </div>
+              <div className="grid grid-cols-1 gap-3">
                 <ActivitySection />
               </div>
             </div>

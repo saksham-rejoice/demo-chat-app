@@ -2,8 +2,8 @@ import {
   success,
   internalServerError,
   badRequest,
-} from "../../../helpers/api-response";
-import savedPost from "../../../models/Instagram/saveInstagramPost";
+} from "../../../helpers/api-response.js";
+import savedPost from "../../../models/Instagram/saveInstagramPost.js";
 export async function savePost(request, response) {
   try {
     const { postId, collectionName } = request.body;

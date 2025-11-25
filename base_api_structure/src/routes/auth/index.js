@@ -3,8 +3,8 @@ import {
   login,
   refreshToken,
   userDetailsByToken,
-} from "../../controllers/auth";
-import {authenticate} from "../../middleware/auth";
+} from "../../controllers/auth/index.js";
+import {authenticate} from "../../middleware/auth.js";
 export const authRouter = (app) => {
   app.post("/api/auth/register", register);
   app.post("/api/auth/login", login);

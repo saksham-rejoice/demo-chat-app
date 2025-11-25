@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogTitle,
   DialogDescription,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { Bookmark, Plus } from "lucide-react";
 import {
@@ -16,6 +15,7 @@ import {
   getCollection,
 } from "@/services/instagramService";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 interface Post {
   id: number;
@@ -56,7 +56,9 @@ export default function SavedDialog({ post }: SavedDialogProps) {
     setLoading(true);
     try {
       const data = await getCollection();
-      const collectionsArray = Array.isArray(data.collections) ? data.collections : [];
+      const collectionsArray = Array.isArray(data.collections)
+        ? data.collections
+        : [];
       setCollections(collectionsArray);
     } catch (error) {
       toast.error("Failed to load collections");
@@ -82,8 +84,6 @@ export default function SavedDialog({ post }: SavedDialogProps) {
     }
   };
 
-
-
   const handleCreateCollection = async () => {
     if (!newCollection.trim()) return;
 
@@ -108,9 +108,9 @@ export default function SavedDialog({ post }: SavedDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <button className="transition-transform hover:scale-110">
+        <Button className="transition-transform hover:scale-110">
           <Bookmark className="w-6 h-6 text-white" />
-        </button>
+        </Button>
       </DialogTrigger>
 
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
@@ -142,7 +142,7 @@ export default function SavedDialog({ post }: SavedDialogProps) {
                   className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors disabled:opacity-50"
                 >
                   <span className="font-medium">
-                    {collection.collectionName || 'Unnamed Collection'}
+                    {collection.collectionName || "Unnamed Collection"}
                   </span>
                   <span className="text-sm text-gray-400">
                     {collection.savedPost?.length || 0} posts
@@ -195,8 +195,6 @@ export default function SavedDialog({ post }: SavedDialogProps) {
               </div>
             )}
           </div>
-
-
         </div>
       </DialogContent>
     </Dialog>

@@ -1,4 +1,4 @@
-import { getProducts, getProductById } from "../../controllers/products";
+import { getProducts, getProductById } from "../../controllers/products/index.js";
 
 export const productRouter = (app) => {
   app.get("/api/products", getProducts);

@@ -1,11 +1,15 @@
 import express, { json } from "express";
-import { wrapRoutes } from "./routes/wrap-routes";
-import connectDB from "./config/db";
+import { wrapRoutes } from "./routes/wrap-routes.js";
+import connectDB from "./config/db.js";
 import dotenv from "dotenv";
 import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import morgan from "morgan";
+import { logInfo } from "./services/loggerService.js";
+import { handleChatEvents } from "./events/index.js";
+import "./services/loggerService.js";
+
 dotenv.config();
 connectDB();
 
@@ -24,7 +28,20 @@ app.use(json());
 const PORT = process.env.PORT || 5000;
 wrapRoutes(app);
 
-import { handleChatEvents } from "./events";
+// Test logger queue on startup
+setTimeout(() => {
+  const isEnable = process.env.IS_REDIS_ENABLE;
+  if (isEnable === "true") {
+    logInfo("Server started", { 
+      action: "SERVER_START",
+      metadata: {
+        port: PORT,
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+  console.log("initilized!!!");
+}, 2000);
 
 // Socket.IO event handling
 io.on("connection", (socket) => {

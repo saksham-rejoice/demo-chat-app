@@ -137,13 +137,8 @@ export interface Collection {
   collectionName: string;
   postId?: string;
 }
-
-// -----------------------------
-// Suggested Users
-// -----------------------------
-
 export interface SuggestedUsersResponse extends BaseResponse {
-  data: UsersData;
+  data: User[];
 }
 
 // -----------------------------
@@ -174,4 +169,59 @@ export interface FollowingData {
 
 export interface FollowingResponse extends BaseResponse {
   data: FollowingData;
+}
+
+// -----------------------------
+//  Activity
+// -----------------------------
+
+export interface Activity {
+  _id?: string;
+  user: {
+    _id: string;
+    username: string;
+    email: string;
+  };
+  type:
+    | "FOLLOW"
+    | "UNFOLLOW"
+    | "LOGIN"
+    | "POST_UPLOAD"
+    | "POST_DELETE"
+    | "UPDATE_PROFILE"
+    | "POST_LIKE"
+    | "POST_UNLIKE"
+    | "POST_COMMENT";
+  targetUser?: {
+    _id: string;
+    username: string;
+    email: string;
+  } | null;
+  post?: {
+    _id: string;
+    caption: string;
+  } | null;
+  metadata?: { [key: string]: any };
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+  __v?: number;
+}
+
+export interface ActivityLogResponse extends BaseResponse {
+  data: Activity[];
+}
+export interface ActivityLogRequest {
+  type:
+    | "FOLLOW"
+    | "UNFOLLOW"
+    | "LOGIN"
+    | "POST_UPLOAD"
+    | "POST_DELETE"
+    | "UPDATE_PROFILE"
+    | "POST_LIKE"
+    | "POST_UNLIKE"
+    | "POST_COMMENT";
+  targetUser?: string;
+  post?: string;
+  metadata?: { [key: string]: any };
 }

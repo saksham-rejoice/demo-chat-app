@@ -6,7 +6,7 @@ import {
   getAllCollection,
   updateAllCollection,
   deleteCollection,
-} from "../../controllers/Instagram/saved-post";
+} from "../../controllers/Instagram/saved-post/index.js";
 import { authenticate } from "../../middleware/auth.js";
 
 export const instagramSavedPostRouter = (app) => {

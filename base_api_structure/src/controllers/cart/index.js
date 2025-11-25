@@ -1,5 +1,6 @@
 import { Cart } from "../../models";
 import { success, badRequest, internalServerError } from "../../helpers";
+import { logInfo, logError } from "../../services/loggerService.js";
 
 export const addToCart = async (req, res) => {
   try {
@@ -15,8 +16,10 @@ export const addToCart = async (req, res) => {
     }
     
     await cart.save();
+    logInfo("Item added to cart", { userId, action: "ADD_TO_CART", ip: req.ip });
     success(res, "Added to cart successfully", {});
   } catch (error) {
+    logError("Error adding to cart", { userId: req.user._id, action: "ADD_TO_CART", error: error.message, ip: req.ip });
     internalServerError(res, "Error adding to cart");
   }
 };

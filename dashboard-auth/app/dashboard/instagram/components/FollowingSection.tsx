@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { getFollowing } from "@/services/instagramService";
 import { useUser } from "@/hooks/useUser";
 import { FollowingResponse } from "@/types/instagram";
+import SectionSkeleton from "./SectionSkeleton";
 export default function FollowingSection() {
   const [followingData, setFollowingData] = useState<FollowingResponse | null>(
     null
   );
+  const [loading, setLoading] = useState(true);
   const { user } = useUser();
   useEffect(() => {
     const fetchFollowing = async () => {
@@ -16,10 +18,14 @@ export default function FollowingSection() {
         setFollowingData(following);
       } catch (error) {
         console.error("Failed to fetch following:", error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchFollowing();
   }, []);
+  if (loading) return <SectionSkeleton title="Following" />;
+
   return (
     <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 h-48">
       <h3 className="text-white font-medium mb-3 text-sm">Following</h3>

@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { User } from "../../models";
 import { success, badRequest, internalServerError } from "../../helpers";
+import { logInfo, logError, logCatchError } from "../../services/loggerService.js";
 
 const generateAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
@@ -23,11 +24,13 @@ export const register = async (req, res) => {
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
+    logInfo("User registered successfully", { userId: user._id, action: "REGISTER", ip: req.ip });
     success(res, "User registered successfully", {
       accessToken,
       refreshToken,
     });
   } catch (error) {
+    logCatchError(error, { action: "REGISTER", ip: req.ip });
     internalServerError(res, "Registration failed");
   }
 };
@@ -44,6 +47,7 @@ export const login = async (req, res) => {
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
+    logInfo("User logged in successfully", { userId: user._id, action: "LOGIN", ip: req.ip });
     success(res, "Login Successful", {
       accessToken,
       refreshToken,
@@ -54,6 +58,7 @@ export const login = async (req, res) => {
       },
     });
   } catch (error) {
+    logCatchError(error, { action: "LOGIN", ip: req.ip });
     internalServerError(res, "Login failed");
   }
 };
@@ -92,7 +97,7 @@ export const refreshToken = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Refresh token error:", error);
+    logCatchError(error, { action: "REFRESH_TOKEN", ip: req.ip });
     internalServerError(res, "Token refresh failed");
   }
 };
@@ -103,6 +108,7 @@ export const userDetailsByToken = async (request, response) => {
     const user = await User.findById(id).select("_id username email");
     success(response, "User details fetched successfully", user);
   } catch (error) {
+    logCatchError(error, { action: "GET_USER_DETAILS", userId: request.user?.id });
     internalServerError(response, error.message);
   }
 };

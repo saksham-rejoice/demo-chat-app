@@ -9,13 +9,14 @@ import {
   BaseResponse,
   TrendingHashtagResponse,
   SavedPost,
-  SavedPostData,
   SavedCollectionData,
   SavedPostsResponse,
   Collection,
   SuggestedUsersResponse,
   FollowersResponse,
   FollowingResponse,
+  ActivityLogRequest,
+  ActivityLogResponse,
 } from "@/types/instagram";
 
 export const uploadInstagramPhoto = async ({
@@ -286,6 +287,38 @@ export const followUser = async (id: string): Promise<BaseResponse> => {
       `${apiEndpoints.instagram.follow.toggle}`,
       { userId: id }
     );
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const likePost = async (id: string): Promise<BaseResponse> => {
+  try {
+    const url = `${apiEndpoints.instagram.posts.like(id)}`;
+    const response = await apiClient.get(url);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const logActivity = async (
+  data: ActivityLogRequest
+): Promise<BaseResponse> => {
+  try {
+    const response = await apiClient.post(
+      apiEndpoints.instagram.activity.log,
+      data
+    );
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+export const getActivity = async (): Promise<ActivityLogResponse> => {
+  try {
+    const response = await apiClient.get(apiEndpoints.instagram.activity.list);
     return response.data;
   } catch (error) {
     throw error;

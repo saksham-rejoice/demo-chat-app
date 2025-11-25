@@ -1,8 +1,13 @@
 import {
+  logActivity,
+  getActivity,
+} from "../../controllers/Instagram/activity/index.js";
+import { toggleLike } from "../../controllers/Instagram/likes/index.js";
+import {
   getFollowers,
-  getUsers,
   toggleFollower,
   getFollowing,
+  getSuggestedUsers,
 } from "../../controllers/Instagram/followers/index.js";
 import {
   createPost,
@@ -52,9 +57,15 @@ export const instagramPostsRouter = (app) => {
     authenticate,
     getPostsByHashtag
   );
+  //likes
+  app.get("/api/instagram/posts/:postId/like", authenticate, toggleLike);
   // followers
   app.get("/api/instagram/followers", authenticate, getFollowers);
   app.post("/api/instagram/followers", authenticate, toggleFollower);
-  app.get("/api/instagram/suggested/users", authenticate, getUsers);
+  app.get("/api/instagram/suggested/users", authenticate, getSuggestedUsers);
   app.get("/api/instagram/following", authenticate, getFollowing);
+  app.post("/api/instagram/posts/:postId/like", authenticate, toggleLike);
+  // activity
+  app.post("/api/instagram/activity", authenticate, logActivity);
+  app.get("/api/instagram/activity", authenticate, getActivity);
 };

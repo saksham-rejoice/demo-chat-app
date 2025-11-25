@@ -4,9 +4,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { getFollowers } from "@/services/instagramService";
 import { FollowersResponse } from "@/types/instagram";
 import { useEffect, useState } from "react";
+import SectionSkeleton from "./SectionSkeleton";
 export default function FollowersSection() {
   const [followersCount, setFollowersCount] =
     useState<FollowersResponse | null>(null);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     const fetchFollowers = async () => {
       try {
@@ -14,10 +16,14 @@ export default function FollowersSection() {
         setFollowersCount(followers);
       } catch (error) {
         console.error("Failed to fetch followers:", error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchFollowers();
   }, []);
+  if (loading) return <SectionSkeleton title="Followers" />;
+
   return (
     <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 h-48">
       <h3 className="text-white font-medium mb-3 text-sm">Followers</h3>

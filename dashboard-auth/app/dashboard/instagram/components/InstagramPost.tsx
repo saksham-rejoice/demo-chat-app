@@ -2,7 +2,14 @@
 import { Heart, MoreHorizontal, Send } from "lucide-react";
 import CommentDialog from "./CommentDialog";
 import SavedDialog from "./SavedDialog";
-
+import { toast } from "sonner";
+import { useAppDispatch } from "@/store/hooks";
+import {
+  logActivityAsync,
+  refreshActivity,
+} from "@/store/slices/instagramSlice";
+import { ActivityLogRequest } from "@/types/instagram";
+import { Button } from "@/components/ui/button";
 interface Post {
   id: number;
   username: string;
@@ -20,6 +27,26 @@ interface InstagramPostProps {
 }
 
 const InstagramPost = ({ posts, liked, toggleLike }: InstagramPostProps) => {
+  const dispatch = useAppDispatch();
+
+  const handleLikeToggle = async (post: Post) => {
+    try {
+      const isLiked = liked[post.id];
+      toggleLike(post.id);
+
+      const activityData: ActivityLogRequest = {
+        type: isLiked ? "POST_UNLIKE" : "POST_LIKE",
+        post: post.id.toString(),
+        metadata: {
+          postUsername: post.username,
+        },
+      };
+      dispatch(logActivityAsync(activityData));
+      dispatch(refreshActivity());
+    } catch (error) {
+      toast.error("Failed to like post");
+    }
+  };
   return (
     <div className="space-y-3">
       {posts.map((post) => (
@@ -62,8 +89,8 @@ const InstagramPost = ({ posts, liked, toggleLike }: InstagramPostProps) => {
           <div className="px-4 pt-3 pb-2">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-4">
-                <button
-                  onClick={() => toggleLike(post.id)}
+                <Button
+                  onClick={() => handleLikeToggle(post)}
                   className="transition-transform hover:scale-110"
                 >
                   <Heart
@@ -73,14 +100,14 @@ const InstagramPost = ({ posts, liked, toggleLike }: InstagramPostProps) => {
                         : "text-white"
                     }`}
                   />
-                </button>
+                </Button>
 
                 {/* extracted comment dialog */}
                 <CommentDialog post={post} />
 
-                <button className="transition-transform hover:scale-110">
+                <Button className="transition-transform hover:scale-110">
                   <Send className="w-6 h-6 text-white" />
-                </button>
+                </Button>
               </div>
               <SavedDialog post={post} />
             </div>

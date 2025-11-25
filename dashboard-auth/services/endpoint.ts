@@ -24,7 +24,9 @@ let apiEndpoints = {
       update: "/api/instagram/posts",
       upload: "/api/instagram/posts/upload",
       delete: "/api/instagram/posts/delete",
-      like: "/api/instagram/posts/like",
+      like: (id: string) => {
+        return `/api/instagram/posts/${id}/like`;
+      },
       unlike: "/api/instagram/posts/unlike",
       trendingHashtags: "/api/instagram/trending-hashtags",
     },
@@ -53,6 +55,10 @@ let apiEndpoints = {
       delete: "/api/instagram/collections",
       getById: "/api/instagram/collections",
     },
+    activity:{
+      log:"/api/instagram/activity",
+      list:"/api/instagram/activity"
+    }
   },
 };
 
