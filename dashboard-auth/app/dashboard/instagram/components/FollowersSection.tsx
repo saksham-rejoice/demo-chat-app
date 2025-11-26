@@ -5,10 +5,14 @@ import { getFollowers } from "@/services/instagramService";
 import { FollowersResponse } from "@/types/instagram";
 import { useEffect, useState } from "react";
 import SectionSkeleton from "./SectionSkeleton";
+import { useAppSelector } from "@/store/hooks";
 export default function FollowersSection() {
   const [followersCount, setFollowersCount] =
     useState<FollowersResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const activityRefreshTrigger = useAppSelector(
+    (state) => state.instagram.activityRefreshTrigger
+  );
   useEffect(() => {
     const fetchFollowers = async () => {
       try {
@@ -21,7 +25,7 @@ export default function FollowersSection() {
       }
     };
     fetchFollowers();
-  }, []);
+  }, [activityRefreshTrigger]);
   if (loading) return <SectionSkeleton title="Followers" />;
 
   return (

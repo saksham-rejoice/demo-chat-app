@@ -1,5 +1,5 @@
 "use client";
-import { Home, PlusSquare, Bookmark } from "lucide-react";
+import { Home, PlusSquare, Bookmark, Search } from "lucide-react";
 import Link from "next/link";
 
 const InstagramSidebar = () => {
@@ -26,6 +26,13 @@ const InstagramSidebar = () => {
         >
           <Bookmark className="w-6 h-6" />
           <span>Save</span>
+        </Link>
+        <Link
+          href={"/dashboard/instagram/explore"}
+          className="flex items-center gap-4 w-full p-3 hover:bg-gray-800 rounded-lg transition-colors text-gray-300"
+        >
+          <Search className="w-6 h-6" />
+          <span>Explore</span>
         </Link>
       </nav>
     </aside>

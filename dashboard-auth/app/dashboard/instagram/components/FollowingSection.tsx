@@ -5,12 +5,16 @@ import { getFollowing } from "@/services/instagramService";
 import { useUser } from "@/hooks/useUser";
 import { FollowingResponse } from "@/types/instagram";
 import SectionSkeleton from "./SectionSkeleton";
+import { useAppSelector } from "@/store/hooks";
 export default function FollowingSection() {
   const [followingData, setFollowingData] = useState<FollowingResponse | null>(
     null
   );
   const [loading, setLoading] = useState(true);
   const { user } = useUser();
+  const activityRefreshTrigger = useAppSelector(
+    (state) => state.instagram.activityRefreshTrigger
+  );
   useEffect(() => {
     const fetchFollowing = async () => {
       try {
@@ -23,7 +27,7 @@ export default function FollowingSection() {
       }
     };
     fetchFollowing();
-  }, []);
+  }, [activityRefreshTrigger]);
   if (loading) return <SectionSkeleton title="Following" />;
 
   return (

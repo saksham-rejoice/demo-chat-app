@@ -15,10 +15,10 @@ const instagramPostSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    hashtags: [
+    hashtagRefs: [
       {
-        type: String,
-        trim: true,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Hashtags",
       },
     ],
     user: {

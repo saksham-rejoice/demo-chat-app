@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
 
 export const uploadImage = async (file, folder = "instagram") => {
+  let filePath = file?.path; // store path for cleanup
+
   try {
     const imagekit = getImageKit();
     if (!file) {
@@ -33,6 +35,16 @@ export const uploadImage = async (file, folder = "instagram") => {
   } catch (error) {
     console.error("Error uploading image:", error);
     throw new Error("Failed to upload image");
+  } finally {
+    // ALWAYS remove the temp file
+    if (filePath && fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+        console.log("Temp file removed:", filePath);
+      } catch (err) {
+        console.error("Failed to remove temp file:", err);
+      }
+    }
   }
 };
 

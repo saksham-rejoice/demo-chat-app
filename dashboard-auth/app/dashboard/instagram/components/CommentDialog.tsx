@@ -62,7 +62,7 @@ const Avatar = memo(
 
     return (
       <div
-        className={`${sizeClasses[size]} rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0`}
+        className={`${sizeClasses[size]} rounded-full bg-gray-700 flex items-center justify-center shrink-0`}
       >
         {username.charAt(0).toUpperCase()}
       </div>
@@ -508,7 +508,7 @@ export default function CommentDialog({ post }: { post: Post }) {
           <div className="flex-1 overflow-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
             {/* Caption */}
             <div className="flex gap-3 items-start">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-sm flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-400 to-pink-400 flex items-center justify-center text-sm shrink-0">
                 {post.avatar}
               </div>
               <div className="flex-1 min-w-0">

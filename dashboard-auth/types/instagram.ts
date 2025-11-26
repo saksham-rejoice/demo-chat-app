@@ -27,6 +27,7 @@ export interface InstagramUser {
 export interface User {
   _id: string;
   username: string;
+  isSuggested?: boolean;
 }
 
 // For lists
@@ -83,7 +84,7 @@ export interface UploadInstagramPhotoResponse extends BaseResponse {
 export interface PublishInstagramPostRequest {
   caption: string;
   location: string;
-  hashtags: string[];
+  hashtags?: string[];
   imageId: string;
 }
 
@@ -225,3 +226,22 @@ export interface ActivityLogRequest {
   post?: string;
   metadata?: { [key: string]: any };
 }
+
+
+// STORIES 
+
+export interface StoryRequest {
+  imageId:string
+};
+export interface StoryResponse extends BaseResponse {
+  data: {
+    myStories: StoryUser | null;
+    otherStories: StoryUser[];
+  };
+};
+
+export interface StoryUser {
+  userId: string;
+  username: string;
+  imageUrls: string[];
+};

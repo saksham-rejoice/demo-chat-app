@@ -17,6 +17,8 @@ import {
   FollowingResponse,
   ActivityLogRequest,
   ActivityLogResponse,
+  StoryRequest,
+  StoryResponse,
 } from "@/types/instagram";
 
 export const uploadInstagramPhoto = async ({
@@ -302,7 +304,7 @@ export const likePost = async (id: string): Promise<BaseResponse> => {
     throw error;
   }
 };
-
+// Activity
 export const logActivity = async (
   data: ActivityLogRequest
 ): Promise<BaseResponse> => {
@@ -319,6 +321,29 @@ export const logActivity = async (
 export const getActivity = async (): Promise<ActivityLogResponse> => {
   try {
     const response = await apiClient.get(apiEndpoints.instagram.activity.list);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Instagram Stories
+export const getStories = async (): Promise<StoryResponse> => {
+  try {
+    const response = await apiClient.get(apiEndpoints.instagram.stories.list);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+export const createStory = async (
+  data: StoryRequest
+): Promise<BaseResponse> => {
+  try {
+    const response = await apiClient.post(
+      apiEndpoints.instagram.stories.create,
+      data
+    );
     return response.data;
   } catch (error) {
     throw error;

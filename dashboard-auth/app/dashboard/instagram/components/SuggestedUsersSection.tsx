@@ -7,13 +7,17 @@ import { toast } from "sonner";
 import { useUser } from "@/hooks/useUser";
 import { Badge } from "@/components/ui/badge";
 import SectionSkeleton from "./SectionSkeleton";
-import { useAppDispatch } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logActivityAsync, refreshActivity } from "@/store/slices/instagramSlice";
 import { ActivityLogRequest } from "@/types/instagram";
 export default function SuggestedUsersSection() {
   const loggedUser = useUser();
   const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
+  const activityRefreshTrigger = useAppSelector(
+    (state) => state.instagram.activityRefreshTrigger
+  );
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -28,7 +32,7 @@ export default function SuggestedUsersSection() {
       }
     };
     fetchUsers();
-  }, []);
+  }, [activityRefreshTrigger]);
 
   const dispatch = useAppDispatch();
 
@@ -36,22 +40,35 @@ export default function SuggestedUsersSection() {
     try {
       const data = await followUser(id);
       
-      // Log activity based on the response
-      const activityType = data.message.includes("followed") ? "FOLLOW" : "UNFOLLOW";
-      
-      const activityData: ActivityLogRequest = {
-        type: activityType,
-        targetUser: id,
-        metadata: {
-          message: data.message,
-          timestamp: new Date().toISOString(),
-        },
-      };
-      
-      dispatch(logActivityAsync(activityData));
-      dispatch(refreshActivity());
-      
       if (data.success) {
+        // Determine action based on current button state
+        const isCurrentlyFollowed = followedUsers.has(id) || !suggestedUsers.find(u => u._id === id)?.isSuggested;
+        const activityType = isCurrentlyFollowed ? "UNFOLLOW" : "FOLLOW";
+        
+        // Update local state
+        setFollowedUsers(prev => {
+          const newSet = new Set(prev);
+          if (activityType === "FOLLOW") {
+            newSet.add(id);
+          } else {
+            newSet.delete(id);
+          }
+          return newSet;
+        });
+        
+        // Log activity
+        const activityData: ActivityLogRequest = {
+          type: activityType,
+          targetUser: id,
+          metadata: {
+            message: data.message,
+            timestamp: new Date().toISOString(),
+          },
+        };
+        
+        dispatch(logActivityAsync(activityData));
+        dispatch(refreshActivity());
+        
         toast.success(data.message);
       }
     } catch (error) {
@@ -86,9 +103,13 @@ export default function SuggestedUsersSection() {
                   onClick={() => {
                     handleFollowing(user._id);
                   }}
-                  className="text-white text-sm bg-gray-600 hover:bg-gray-400 rounded-full w-5 h-5 flex items-center justify-center"
+                  className={`text-white text-sm rounded-full w-5 h-5 flex items-center justify-center ${
+                    followedUsers.has(user._id) || !user.isSuggested
+                      ? "bg-green-600 hover:bg-green-700"
+                      : "bg-gray-600 hover:bg-gray-400"
+                  }`}
                 >
-                  +
+                  {followedUsers.has(user._id) || !user.isSuggested ? "✓" : "+"}
                 </Button>
               ) : (
                 <Badge className="bg-green-600/20 text-green-400 border-green-500/30 text-xs px-2 py-1">

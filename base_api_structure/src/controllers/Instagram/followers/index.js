@@ -89,38 +89,44 @@ export async function getFollowers(request, response) {
 
 export async function getSuggestedUsers(request, response) {
   try {
-    try {
-      const { id } = request.user; 
+    const { id } = request.user;
 
-      const loggedInUser = await UserModel.findById(id).select(
-        "followers following"
-      );
-      if (!loggedInUser) {
-        return badRequest(response, "User not found");
-      }
-      const allUsers = await UserModel.find().select(
-        "username followers following"
-      );
-      let suggestedUsers = allUsers.filter((user) => {
-        return (
-          user._id.toString() !== id.toString() &&
-          !loggedInUser.following.includes(user._id) &&
-          !loggedInUser.followers.includes(user._id) &&
-          !user.followers.includes(id) &&
-          !user.following.includes(id)
-        );
-      });
-      const cleanSuggestedUsers = suggestedUsers.map((user) => ({
+    const loggedInUser = await UserModel.findById(id).select(
+      "followers following"
+    );
+    if (!loggedInUser) {
+      return badRequest(response, "User not found");
+    }
+
+    const allUsers = await UserModel.find().select(
+      "username followers following"
+    );
+
+    const usersWithFlag = allUsers.map((user) => {
+      const isSuggested =
+        user._id.toString() !== id.toString() &&
+        !loggedInUser.following.includes(user._id) &&
+        !loggedInUser.followers.includes(user._id) &&
+        !user.followers.includes(id) &&
+        !user.following.includes(id);
+
+      return {
         _id: user._id,
         username: user.username,
-      }));
-      return success(response, "Suggested users fetched", cleanSuggestedUsers);
-    } catch (error) {
-      logCatchError(error, { action: "GET_SUGGESTED_USERS_INNER", userId: request.user?.id });
-      return badRequest(response, "Something went wrong");
-    }
+        isSuggested: isSuggested,
+      };
+    });
+
+    return success(
+      response,
+      "Users fetched with suggestion flag",
+      usersWithFlag
+    );
   } catch (error) {
-    logCatchError(error, { action: "GET_SUGGESTED_USERS", userId: request.user?.id });
+    logCatchError(error, {
+      action: "GET_SUGGESTED_USERS",
+      userId: request.user?.id,
+    });
     return internalServerError(response, error.message);
   }
 }

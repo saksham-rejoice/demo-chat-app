@@ -58,6 +58,10 @@ let apiEndpoints = {
     activity:{
       log:"/api/instagram/activity",
       list:"/api/instagram/activity"
+    },
+    stories:{
+      list:"/api/instagram/stories",
+      create:"/api/instagram/stories",
     }
   },
 };

@@ -47,7 +47,7 @@ export default function TrendingSection() {
                 className="p-1 rounded hover:bg-gray-700/50 cursor-pointer"
               >
                 <p className="text-blue-400 text-sm font-medium">
-                  #{item.hashtag}
+                  {item.hashtag}
                 </p>
                 <p className="text-gray-400 text-xs">
                   {formatCount(item.count)} posts

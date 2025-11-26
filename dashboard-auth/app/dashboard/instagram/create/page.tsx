@@ -1,150 +1,61 @@
 "use client";
-
-import { useState, useRef } from "react";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Combobox } from "@/components/ui/comboBox";
 import { X, ImagePlus } from "lucide-react";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  uploadInstagramPhoto,
-  deleteInstagramPhoto,
-} from "@/services/instagramService";
-import { toast } from "sonner";
 import PreviewPostDialog from "./components/PreviewPostDialog";
-import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/useUser";
+import { useInstagramPost } from "@/hooks/Instagram/useInstagramPost";
+
+const MAX_DROPDOWN_HEIGHT = "max-h-40";
 
 export default function CreateInstagramPost() {
-  const router = useRouter();
   const { user } = useUser();
-  const [image, setImage] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [caption, setCaption] = useState("");
-  const [location, setLocation] = useState("");
-  const [hashtags, setHashtags] = useState<string[]>([]);
-  const [uploadedImageId, setUploadedImageId] = useState<string | null>(null);
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const {
+    // State
+    image,
+    caption,
+    location,
+    hashtags,
+    uploadedImageId,
+    uploadedImageUrl,
+    isUploading,
+    isDragging,
+    trendingHashtagsList,
+    showHashtagDropdown,
+    states,
+
+    // Handlers
+    handleImageUpload,
+    handleDrop,
+    handleDragOver,
+    handleDragLeave,
+    removeImage,
+    handleCaptionChange,
+    selectHashtag,
+    setLocation,
+    removeHashtag,
+    clearForm,
+  } = useInstagramPost();
 
   const userName = user?.username || "your_username";
   const userImage = undefined;
 
-  const fileRef = useRef<HTMLInputElement | null>(null);
-
-  const hashtagOptions = [
-    "travel",
-    "food",
-    "fitness",
-    "nature",
-    "coding",
-    "ai",
-    "photography",
-  ];
-
-  // Handle normal upload
-  const handleImageUpload = async (e: any) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => setImage(reader.result as string);
-    reader.readAsDataURL(file);
-
-    setIsUploading(true);
-    try {
-      const response = await uploadInstagramPhoto({ image: file });
-      setUploadedImageId(response.data._id);
-      setUploadedImageUrl(response.data.url);
-      toast.success("Image uploaded successfully!");
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast.error("Failed to upload image");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  // Handle drag-drop file
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => setImage(reader.result as string);
-    reader.readAsDataURL(file);
-
-    setIsUploading(true);
-    try {
-      const response = await uploadInstagramPhoto({ image: file });
-      setUploadedImageId(response.data._id);
-      setUploadedImageUrl(response.data.url);
-      toast.success("Image uploaded successfully!");
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast.error("Failed to upload image");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const removeImage = async () => {
-    if (uploadedImageId) {
-      try {
-        await deleteInstagramPhoto(uploadedImageId);
-        toast.success("Image deleted successfully!");
-      } catch (error) {
-        toast.error("Failed to delete image");
-      }
-    }
-    setImage(null);
-    setUploadedImageId(null);
-    setUploadedImageUrl(null);
-  };
-
-  const addHashtag = (value: string) => {
-    if (!hashtags.includes(value)) {
-      setHashtags([...hashtags, value]);
-    }
-  };
-
-  const removeHashtag = (tag: string) => {
-    setHashtags(hashtags.filter((t) => t !== tag));
-  };
-
-  const clearForm = () => {
-    setImage(null);
-    setUploadedImageId(null);
-    setUploadedImageUrl(null);
-    setCaption("");
-    setLocation("");
-    setHashtags([]);
-    router.push("/dashboard/instagram/feed");
-  };
-
   return (
     <div className="max-w-xl mx-auto p-4 space-y-6 bg-gray-900 text-gray-200">
-      {/* ================= IMAGE UPLOAD W/ DRAG & DROP ================= */}
+      {/* IMAGE UPLOAD SECTION */}
       <Card
         className={`p-4 bg-gray-800 border-gray-700 transition ${
           isDragging ? "border-blue-500 bg-gray-700" : ""
         }`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragging(true);
-        }}
-        onDragLeave={() => setIsDragging(false)}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
         <div className="flex flex-col items-center gap-4">
@@ -157,7 +68,7 @@ export default function CreateInstagramPost() {
             >
               {isUploading ? (
                 <div className="flex flex-col items-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
                   <p className="text-sm text-gray-400 mt-2">Uploading...</p>
                 </div>
               ) : (
@@ -172,13 +83,13 @@ export default function CreateInstagramPost() {
           ) : (
             <div className="relative w-full">
               <img
-                src={uploadedImageUrl || image || ""}
+                src={uploadedImageUrl || image}
                 alt="upload"
                 className="rounded-lg w-full h-60 object-cover"
               />
               {isUploading && (
                 <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white" />
                 </div>
               )}
               <Button
@@ -193,7 +104,7 @@ export default function CreateInstagramPost() {
             </div>
           )}
 
-          <input
+          <Input
             type="file"
             ref={fileRef}
             onChange={handleImageUpload}
@@ -203,50 +114,63 @@ export default function CreateInstagramPost() {
         </div>
       </Card>
 
-      {/* ================= CAPTION ================= */}
-      <div>
+      {/* CAPTION */}
+      <div className="relative">
         <label className="text-sm font-medium text-gray-300">Caption</label>
         <Textarea
           value={caption}
-          onChange={(e) => setCaption(e.target.value)}
-          placeholder="Write a caption..."
+          onChange={handleCaptionChange}
+          placeholder="Write a caption... (Type # for hashtags)"
           className="mt-1 bg-gray-800 border-gray-700 text-gray-200 placeholder:text-gray-500"
         />
+        {showHashtagDropdown && trendingHashtagsList.length > 0 && (
+          <div
+            className={`absolute z-10 w-full mt-1 bg-gray-800 border border-gray-700 rounded-md shadow-lg ${MAX_DROPDOWN_HEIGHT} overflow-y-auto`}
+          >
+            {trendingHashtagsList.map((tag, index) => (
+              <div
+                key={`${tag.hashtag}-${index}`}
+                className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-gray-200 text-sm"
+                onClick={() => selectHashtag(tag.hashtag)}
+              >
+                {tag.hashtag} ({tag.count} posts)
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* ================= LOCATION ================= */}
+      {/* LOCATION */}
       <div>
         <label className="text-sm font-medium text-gray-300">Location</label>
-        <Input
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="Add location..."
-          className="mt-1 bg-gray-800 border-gray-700 text-gray-200 placeholder:text-gray-500"
-        />
+        <div className="mt-1">
+          <Combobox
+            items={states.map((state) => ({
+              value: state.isoCode,
+              label: state.name,
+            }))}
+            value={
+              states.find((state) => state.name === location)?.isoCode || ""
+            }
+            onValueChange={(value) => {
+              const selectedState = states.find(
+                (state) => state.isoCode === value
+              );
+              setLocation(selectedState?.name || "");
+            }}
+            searchValue={location}
+            onSearchChange={setLocation}
+            onClear={() => setLocation("")}
+            placeholder="Search location..."
+            inputMode={true}
+            className="w-full"
+          />
+        </div>
       </div>
 
-      {/* ================= HASHTAGS ================= */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-300">Hashtags</label>
-        <Select onValueChange={addHashtag}>
-          <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-200">
-            <SelectValue placeholder="Select a hashtag" />
-          </SelectTrigger>
-          <SelectContent className="bg-gray-800 border-gray-700 text-gray-200">
-            {hashtagOptions.map((tag) => (
-              <SelectItem
-                key={tag}
-                value={tag}
-                className="text-gray-200 focus:bg-gray-700"
-              >
-                #{tag}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Chips */}
-        <div className="flex flex-wrap gap-2 mt-2">
+      {/* HASHTAGS DISPLAY */}
+      {hashtags.length > 0 && (
+        <div className="flex flex-wrap gap-2">
           {hashtags.map((tag) => (
             <Badge
               key={tag}
@@ -263,9 +187,8 @@ export default function CreateInstagramPost() {
             </Badge>
           ))}
         </div>
-      </div>
+      )}
 
-      {/* ================= PREVIEW BUTTON ================= */}
       <PreviewPostDialog
         userName={userName}
         userImage={userImage}

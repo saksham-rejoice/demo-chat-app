@@ -1,8 +1,6 @@
 "use client";
-
-import { useState, useEffect } from "react";
+import { useState} from "react";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ImagePlus } from "lucide-react";
 import { publishInstagramPost } from "@/services/instagramService";
 import { toast } from "sonner";
+
 interface PreviewPostDialogProps {
   userName: string;
   userImage?: string;
@@ -39,12 +38,10 @@ const PreviewPostDialog = ({
 }: PreviewPostDialogProps) => {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const router = useRouter();
   const isFormValid =
     uploadedImageId &&
     caption.trim().length > 0 &&
-    location.trim().length > 0 &&
-    hashtags.length > 0;
+    location.trim().length > 0;
 
   const handlePublishPost = async () => {
     if (!isFormValid) {
@@ -53,13 +50,12 @@ const PreviewPostDialog = ({
     }
 
     setIsPublishing(true);
-    
+
     try {
       await publishInstagramPost({
         imageId: uploadedImageId,
         caption,
         location,
-        hashtags,
       });
       toast.success("Post published successfully!");
       setIsOpen(false);
@@ -157,7 +153,7 @@ const PreviewPostDialog = ({
                 {hashtags.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
                     {hashtags.map((tag, index) => (
-                      <span key={index}>#{tag}</span>
+                      <span key={`${tag}-${index}`}>{tag}</span>
                     ))}
                   </div>
                 ) : (

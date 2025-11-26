@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import { User } from "../../models";
 import { success, badRequest, internalServerError } from "../../helpers";
-import { logInfo, logError, logCatchError } from "../../services/loggerService.js";
+import { logInfo, logCatchError } from "../../services/loggerService.js";
 
 const generateAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });

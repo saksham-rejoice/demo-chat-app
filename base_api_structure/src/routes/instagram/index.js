@@ -1,4 +1,8 @@
 import {
+  getStory,
+  createStory,
+} from "../../controllers/Instagram/stories/index.js";
+import {
   logActivity,
   getActivity,
 } from "../../controllers/Instagram/activity/index.js";
@@ -36,12 +40,7 @@ export const instagramPostsRouter = (app) => {
     deleteUploadImage
   );
 
-  app.post(
-    "/api/instagram/posts",
-    authenticate,
-    //upload.single("postImage"),
-    createPost
-  );
+  app.post("/api/instagram/posts", authenticate, createPost);
   app.put(
     "/api/instagram/posts/:id",
     authenticate,
@@ -68,4 +67,7 @@ export const instagramPostsRouter = (app) => {
   // activity
   app.post("/api/instagram/activity", authenticate, logActivity);
   app.get("/api/instagram/activity", authenticate, getActivity);
+  // stories
+  app.post("/api/instagram/stories", authenticate, createStory);
+  app.get("/api/instagram/stories", authenticate, getStory);
 };

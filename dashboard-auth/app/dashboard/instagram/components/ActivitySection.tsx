@@ -59,7 +59,7 @@ export default function ActivitySection() {
     const fetchActivities = async () => {
       try {
         const response = await getActivity();
-        setActivities(response.data || []);
+        setActivities((response.data || []).reverse());
       } catch (error) {
         console.error("Failed to fetch activities:", error);
       } finally {
@@ -109,7 +109,12 @@ export default function ActivitySection() {
                       <span className="font-medium">
                         {activity.user.username}
                       </span>
-                      <span className="text-gray-400 ml-1">{text}</span>
+                      <span className="text-gray-400 ml-1">
+                        {activity.type === "FOLLOW" || activity.type === "UNFOLLOW" 
+                          ? `${activity.type.toLowerCase()}ed ${activity.targetUser?.username || 'someone'}`
+                          : text
+                        }
+                      </span>
                       {activity.post && (
                         <span className="text-gray-500 ml-1">
                           on "{activity.post.caption}"
