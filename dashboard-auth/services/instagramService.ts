@@ -19,6 +19,8 @@ import {
   ActivityLogResponse,
   StoryRequest,
   StoryResponse,
+  ProfileResponse,
+  UpdateProfileRequest,
 } from "@/types/instagram";
 
 export const uploadInstagramPhoto = async ({
@@ -347,5 +349,40 @@ export const createStory = async (
     return response.data;
   } catch (error) {
     throw error;
+  }
+};
+
+// Profile
+export const getProfile = async (): Promise<ProfileResponse> => {
+  try {
+    const response = await apiClient.get(apiEndpoints.instagram.profile.list);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+export const updateProfile = async (
+  data: UpdateProfileRequest
+): Promise<BaseResponse> => {
+  try {
+    const response = await apiClient.put(
+      apiEndpoints.instagram.profile.updateDetails,
+      data
+    );
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const uploadPhoto = async (imageId: string): Promise<BaseResponse> => {
+  try {
+    const response = await apiClient.post(
+      apiEndpoints.instagram.profile.updatePhoto,
+      { imageId }
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error("Failed to upload photo");
   }
 };

@@ -55,14 +55,19 @@ let apiEndpoints = {
       delete: "/api/instagram/collections",
       getById: "/api/instagram/collections",
     },
-    activity:{
-      log:"/api/instagram/activity",
-      list:"/api/instagram/activity"
+    activity: {
+      log: "/api/instagram/activity",
+      list: "/api/instagram/activity",
     },
-    stories:{
-      list:"/api/instagram/stories",
-      create:"/api/instagram/stories",
-    }
+    stories: {
+      list: "/api/instagram/stories",
+      create: "/api/instagram/stories",
+    },
+    profile: {
+      list: "/api/instagram/profile",
+      updateDetails: "/api/instagram/profile",
+      updatePhoto: "/api/instagram/profile/photo",
+    },
   },
 };
 

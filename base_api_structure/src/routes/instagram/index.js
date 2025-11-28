@@ -1,3 +1,4 @@
+import {getProfileDetails,updateProfileDetails,updateProfilePhoto} from "../../controllers/Instagram/profile/index.js"
 import {
   getStory,
   createStory,
@@ -70,4 +71,8 @@ export const instagramPostsRouter = (app) => {
   // stories
   app.post("/api/instagram/stories", authenticate, createStory);
   app.get("/api/instagram/stories", authenticate, getStory);
+  //profile
+  app.get("/api/instagram/profile", authenticate, getProfileDetails);
+  app.put("/api/instagram/profile", authenticate, updateProfileDetails);
+  app.put("/api/instagram/profile/photo", authenticate, updateProfilePhoto);
 };

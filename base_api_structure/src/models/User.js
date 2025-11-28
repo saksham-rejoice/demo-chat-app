@@ -75,6 +75,38 @@ const userSchema = new mongoose.Schema(
         default: [],
       },
     ],
+    profileImage: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "InstagramImage",
+    },
+    bio: {
+      type: String,
+    },
+    website: {
+      type: String,
+    },
+    metadata: {
+      type: Object,
+      default: () => ({
+        device: {
+          platform: null,
+          model: null,
+          appVersion: null,
+          ip: null,
+        },
+        location: {
+          city: null,
+          state: null,
+          country: null,
+          timezone: null,
+        },
+        social: {
+          themeColor: "#1A73E8",
+          accountType: "public",
+          interests: [],
+        },
+      }),
+    },
   },
   {
     timestamps: true,
@@ -90,5 +122,5 @@ userSchema.pre("save", async function (next) {
 userSchema.methods.comparePassword = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
-
-export default mongoose.model("User", userSchema);
+const UserModel = mongoose.model("User", userSchema);
+export default UserModel;

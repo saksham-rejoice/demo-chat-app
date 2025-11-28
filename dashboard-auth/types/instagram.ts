@@ -227,21 +227,119 @@ export interface ActivityLogRequest {
   metadata?: { [key: string]: any };
 }
 
-
-// STORIES 
+// STORIES
 
 export interface StoryRequest {
-  imageId:string
-};
+  imageId: string;
+}
 export interface StoryResponse extends BaseResponse {
   data: {
     myStories: StoryUser | null;
     otherStories: StoryUser[];
   };
-};
+}
 
 export interface StoryUser {
   userId: string;
   username: string;
   imageUrls: string[];
-};
+}
+
+// PROFILE
+export interface ProfileResponse {
+  data: ProfileData;
+  message: string;
+  error: boolean;
+  success: boolean;
+}
+
+export interface ProfileData {
+  username: string;
+  email: string;
+  profileImage: string;
+  bio: string;
+  website: string;
+  followers: number;
+  following: number;
+  totalPosts: number;
+  posts: Post[];
+  id: string;
+  metadata: Metadata;
+}
+
+export interface Post {
+  _id: string;
+  caption: string;
+  imageDetails: ImageDetails;
+  location: string;
+  hashtagRefs: string[];
+  user: string;
+  likes: any[];
+  comments: any[];
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
+
+export interface ImageDetails {
+  _id: string;
+  url: string;
+}
+
+export interface Metadata {
+  location: LocationMetadata;
+  social: SocialMetadata;
+  device: DeviceMetadata;
+}
+
+export interface LocationMetadata {
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  timezone: string | null;
+}
+
+export interface SocialMetadata {
+  themeColor: string;
+  accountType: "public" | "private";
+  interests: string[];
+}
+
+export interface DeviceMetadata {
+  platform: "android" | "ios" | "web" | null;
+  model: string | null;
+  appVersion: string | null;
+  ip: string | null;
+}
+export interface UpdateProfileRequest {
+  bio?: string;
+  website?: string;
+  username?: string;
+  metadata?: UpdateMetadata;
+}
+
+export interface UpdateMetadata {
+  location: UpdateLocationMetadata;
+  social: UpdateSocialMetadata;
+  device: UpdateDeviceMetadata;
+}
+
+export interface UpdateLocationMetadata {
+  city: string;
+  state: string;
+  country: string;
+  timezone: string;
+}
+
+export interface UpdateSocialMetadata {
+  themeColor: string;
+  accountType: "public" | "private";
+  interests: string[];
+}
+
+export interface UpdateDeviceMetadata {
+  platform: "android" | "ios" | "web";
+  model: string;
+  appVersion: string;
+  ip: string;
+}
